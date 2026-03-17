@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Payment;
+use App\Models\Order;
 use Illuminate\Http\Request;
 
 class PaymentController extends Controller
@@ -12,7 +13,8 @@ class PaymentController extends Controller
      */
     public function index()
     {
-        return response()->json(Payment::with('order')->get());
+        $payments = Payment::with('order')->get();
+        return view('payments.index', compact('payments'));
     }
 
     /**
@@ -20,7 +22,8 @@ class PaymentController extends Controller
      */
     public function create()
     {
-        //
+        $orders = Order::all();
+        return view('payments.create', compact('orders'));
     }
 
     /**
@@ -35,8 +38,8 @@ class PaymentController extends Controller
             'payment_date' => 'nullable|date_format:Y-m-d H:i:s',
         ]);
 
-        $payment = Payment::create($validated);
-        return response()->json($payment, 201);
+        Payment::create($validated);
+        return redirect()->route('payments.index')->with('success', 'Payment created successfully');
     }
 
     /**
@@ -44,11 +47,8 @@ class PaymentController extends Controller
      */
     public function show(string $id)
     {
-        $payment = Payment::with('order')->find($id);
-        if (!$payment) {
-            return response()->json(['message' => 'Payment not found'], 404);
-        }
-        return response()->json($payment);
+        $payment = Payment::with('order')->findOrFail($id);
+        return view('payments.show', compact('payment'));
     }
 
     /**
@@ -56,7 +56,9 @@ class PaymentController extends Controller
      */
     public function edit(string $id)
     {
-        //
+        $payment = Payment::findOrFail($id);
+        $orders = Order::all();
+        return view('payments.edit', compact('payment', 'orders'));
     }
 
     /**
@@ -64,10 +66,7 @@ class PaymentController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $payment = Payment::find($id);
-        if (!$payment) {
-            return response()->json(['message' => 'Payment not found'], 404);
-        }
+        $payment = Payment::findOrFail($id);
 
         $validated = $request->validate([
             'order_id' => 'required|exists:orders,order_id',
@@ -77,7 +76,7 @@ class PaymentController extends Controller
         ]);
 
         $payment->update($validated);
-        return response()->json($payment);
+        return redirect()->route('payments.index')->with('success', 'Payment updated successfully');
     }
 
     /**
@@ -85,12 +84,9 @@ class PaymentController extends Controller
      */
     public function destroy(string $id)
     {
-        $payment = Payment::find($id);
-        if (!$payment) {
-            return response()->json(['message' => 'Payment not found'], 404);
-        }
-
+        $payment = Payment::findOrFail($id);
         $payment->delete();
-        return response()->json(['message' => 'Payment deleted']);
+        
+        return redirect()->route('payments.index')->with('success', 'Payment deleted successfully');
     }
 }

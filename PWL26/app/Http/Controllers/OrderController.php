@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Models\User;
+use App\Models\Event;
 use Illuminate\Http\Request;
 
 class OrderController extends Controller
@@ -12,7 +14,8 @@ class OrderController extends Controller
      */
     public function index()
     {
-        return response()->json(Order::with(['user', 'event', 'items'])->get());
+        $orders = Order::with(['user', 'event', 'items'])->get();
+        return view('orders.index', compact('orders'));
     }
 
     /**
@@ -20,7 +23,9 @@ class OrderController extends Controller
      */
     public function create()
     {
-        //
+        $users = User::all();
+        $events = Event::all();
+        return view('orders.create', compact('users', 'events'));
     }
 
     /**
@@ -37,8 +42,8 @@ class OrderController extends Controller
             'price' => 'required|numeric',
         ]);
 
-        $order = Order::create($validated);
-        return response()->json($order, 201);
+        Order::create($validated);
+        return redirect()->route('orders.index')->with('success', 'Order created successfully');
     }
 
     /**
@@ -46,11 +51,8 @@ class OrderController extends Controller
      */
     public function show(string $id)
     {
-        $order = Order::with(['user', 'event', 'items'])->find($id);
-        if (!$order) {
-            return response()->json(['message' => 'Order not found'], 404);
-        }
-        return response()->json($order);
+        $order = Order::with(['user', 'event', 'items'])->findOrFail($id);
+        return view('orders.show', compact('order'));
     }
 
     /**
@@ -58,7 +60,10 @@ class OrderController extends Controller
      */
     public function edit(string $id)
     {
-        //
+        $order = Order::findOrFail($id);
+        $users = User::all();
+        $events = Event::all();
+        return view('orders.edit', compact('order', 'users', 'events'));
     }
 
     /**
@@ -66,10 +71,7 @@ class OrderController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $order = Order::find($id);
-        if (!$order) {
-            return response()->json(['message' => 'Order not found'], 404);
-        }
+        $order = Order::findOrFail($id);
 
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
@@ -81,7 +83,7 @@ class OrderController extends Controller
         ]);
 
         $order->update($validated);
-        return response()->json($order);
+        return redirect()->route('orders.index')->with('success', 'Order updated successfully');
     }
 
     /**
@@ -89,12 +91,9 @@ class OrderController extends Controller
      */
     public function destroy(string $id)
     {
-        $order = Order::find($id);
-        if (!$order) {
-            return response()->json(['message' => 'Order not found'], 404);
-        }
-
+        $order = Order::findOrFail($id);
         $order->delete();
-        return response()->json(['message' => 'Order deleted']);
+        
+        return redirect()->route('orders.index')->with('success', 'Order deleted successfully');
     }
 }

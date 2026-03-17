@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Event;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class EventController extends Controller
@@ -12,7 +13,8 @@ class EventController extends Controller
      */
     public function index()
     {
-        return response()->json(Event::with('organizer')->get());
+        $events = Event::with('organizer')->get();
+        return view('events.index', compact('events'));
     }
 
     /**
@@ -20,7 +22,8 @@ class EventController extends Controller
      */
     public function create()
     {
-        //
+        $users = User::all();
+        return view('events.create', compact('users'));
     }
 
     /**
@@ -32,8 +35,8 @@ class EventController extends Controller
             'organizer_id' => 'required|exists:users,id',
         ]);
 
-        $event = Event::create($validated);
-        return response()->json($event, 201);
+        Event::create($validated);
+        return redirect()->route('events.index')->with('success', 'Event created successfully');
     }
 
     /**
@@ -41,11 +44,8 @@ class EventController extends Controller
      */
     public function show(string $id)
     {
-        $event = Event::with('organizer')->find($id);
-        if (!$event) {
-            return response()->json(['message' => 'Event not found'], 404);
-        }
-        return response()->json($event);
+        $event = Event::with('organizer')->findOrFail($id);
+        return view('events.show', compact('event'));
     }
 
     /**
@@ -53,7 +53,9 @@ class EventController extends Controller
      */
     public function edit(string $id)
     {
-        //
+        $event = Event::findOrFail($id);
+        $users = User::all();
+        return view('events.edit', compact('event', 'users'));
     }
 
     /**
@@ -61,17 +63,14 @@ class EventController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $event = Event::find($id);
-        if (!$event) {
-            return response()->json(['message' => 'Event not found'], 404);
-        }
+        $event = Event::findOrFail($id);
 
         $validated = $request->validate([
             'organizer_id' => 'required|exists:users,id',
         ]);
 
         $event->update($validated);
-        return response()->json($event);
+        return redirect()->route('events.index')->with('success', 'Event updated successfully');
     }
 
     /**
@@ -79,12 +78,9 @@ class EventController extends Controller
      */
     public function destroy(string $id)
     {
-        $event = Event::find($id);
-        if (!$event) {
-            return response()->json(['message' => 'Event not found'], 404);
-        }
-
+        $event = Event::findOrFail($id);
         $event->delete();
-        return response()->json(['message' => 'Event deleted']);
+        
+        return redirect()->route('events.index')->with('success', 'Event deleted successfully');
     }
 }

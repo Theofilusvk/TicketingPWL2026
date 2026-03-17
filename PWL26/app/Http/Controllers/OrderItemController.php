@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\OrderItem;
+use App\Models\Order;
+use App\Models\Category;
 use Illuminate\Http\Request;
 
 class OrderItemController extends Controller
@@ -12,7 +14,8 @@ class OrderItemController extends Controller
      */
     public function index()
     {
-        return response()->json(OrderItem::with(['order', 'category'])->get());
+        $items = OrderItem::with(['order', 'category'])->get();
+        return view('order-items.index', compact('items'));
     }
 
     /**
@@ -20,7 +23,9 @@ class OrderItemController extends Controller
      */
     public function create()
     {
-        //
+        $orders = Order::all();
+        $categories = Category::all();
+        return view('order-items.create', compact('orders', 'categories'));
     }
 
     /**
@@ -35,8 +40,8 @@ class OrderItemController extends Controller
             'quantity' => 'required|integer|min:1',
         ]);
 
-        $item = OrderItem::create($validated);
-        return response()->json($item, 201);
+        OrderItem::create($validated);
+        return redirect()->route('order-items.index')->with('success', 'Order item created successfully');
     }
 
     /**
@@ -44,11 +49,8 @@ class OrderItemController extends Controller
      */
     public function show(string $id)
     {
-        $item = OrderItem::with(['order', 'category'])->find($id);
-        if (!$item) {
-            return response()->json(['message' => 'Order item not found'], 404);
-        }
-        return response()->json($item);
+        $item = OrderItem::with(['order', 'category'])->findOrFail($id);
+        return view('order-items.show', compact('item'));
     }
 
     /**
@@ -56,7 +58,10 @@ class OrderItemController extends Controller
      */
     public function edit(string $id)
     {
-        //
+        $item = OrderItem::findOrFail($id);
+        $orders = Order::all();
+        $categories = Category::all();
+        return view('order-items.edit', compact('item', 'orders', 'categories'));
     }
 
     /**
@@ -64,10 +69,7 @@ class OrderItemController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $item = OrderItem::find($id);
-        if (!$item) {
-            return response()->json(['message' => 'Order item not found'], 404);
-        }
+        $item = OrderItem::findOrFail($id);
 
         $validated = $request->validate([
             'order_id' => 'required|exists:orders,order_id',
@@ -77,7 +79,7 @@ class OrderItemController extends Controller
         ]);
 
         $item->update($validated);
-        return response()->json($item);
+        return redirect()->route('order-items.index')->with('success', 'Order item updated successfully');
     }
 
     /**
@@ -85,12 +87,9 @@ class OrderItemController extends Controller
      */
     public function destroy(string $id)
     {
-        $item = OrderItem::find($id);
-        if (!$item) {
-            return response()->json(['message' => 'Order item not found'], 404);
-        }
-
+        $item = OrderItem::findOrFail($id);
         $item->delete();
-        return response()->json(['message' => 'Order item deleted']);
+        
+        return redirect()->route('order-items.index')->with('success', 'Order item deleted successfully');
     }
 }

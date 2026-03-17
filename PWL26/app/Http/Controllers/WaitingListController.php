@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\WaitingList;
+use App\Models\Event;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class WaitingListController extends Controller
@@ -12,7 +14,8 @@ class WaitingListController extends Controller
      */
     public function index()
     {
-        return response()->json(WaitingList::with(['event', 'user'])->get());
+        $waitingLists = WaitingList::with(['event', 'user'])->get();
+        return view('waiting-lists.index', compact('waitingLists'));
     }
 
     /**
@@ -20,7 +23,9 @@ class WaitingListController extends Controller
      */
     public function create()
     {
-        //
+        $events = Event::all();
+        $users = User::all();
+        return view('waiting-lists.create', compact('events', 'users'));
     }
 
     /**
@@ -34,8 +39,8 @@ class WaitingListController extends Controller
             'status' => 'required|string|max:50',
         ]);
 
-        $listEntry = WaitingList::create($validated);
-        return response()->json($listEntry, 201);
+        WaitingList::create($validated);
+        return redirect()->route('waiting-lists.index')->with('success', 'Waiting list entry created successfully');
     }
 
     /**
@@ -43,11 +48,8 @@ class WaitingListController extends Controller
      */
     public function show(string $id)
     {
-        $listEntry = WaitingList::with(['event', 'user'])->find($id);
-        if (!$listEntry) {
-            return response()->json(['message' => 'Waiting list entry not found'], 404);
-        }
-        return response()->json($listEntry);
+        $waitingList = WaitingList::with(['event', 'user'])->findOrFail($id);
+        return view('waiting-lists.show', compact('waitingList'));
     }
 
     /**
@@ -55,7 +57,10 @@ class WaitingListController extends Controller
      */
     public function edit(string $id)
     {
-        //
+        $waitingList = WaitingList::findOrFail($id);
+        $events = Event::all();
+        $users = User::all();
+        return view('waiting-lists.edit', compact('waitingList', 'events', 'users'));
     }
 
     /**
@@ -63,10 +68,7 @@ class WaitingListController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $listEntry = WaitingList::find($id);
-        if (!$listEntry) {
-            return response()->json(['message' => 'Waiting list entry not found'], 404);
-        }
+        $waitingList = WaitingList::findOrFail($id);
 
         $validated = $request->validate([
             'event_id' => 'required|exists:events,event_id',
@@ -74,8 +76,8 @@ class WaitingListController extends Controller
             'status' => 'required|string|max:50',
         ]);
 
-        $listEntry->update($validated);
-        return response()->json($listEntry);
+        $waitingList->update($validated);
+        return redirect()->route('waiting-lists.index')->with('success', 'Waiting list entry updated successfully');
     }
 
     /**
@@ -83,12 +85,9 @@ class WaitingListController extends Controller
      */
     public function destroy(string $id)
     {
-        $listEntry = WaitingList::find($id);
-        if (!$listEntry) {
-            return response()->json(['message' => 'Waiting list entry not found'], 404);
-        }
-
-        $listEntry->delete();
-        return response()->json(['message' => 'Waiting list entry deleted']);
+        $waitingList = WaitingList::findOrFail($id);
+        $waitingList->delete();
+        
+        return redirect()->route('waiting-lists.index')->with('success', 'Waiting list entry deleted successfully');
     }
 }

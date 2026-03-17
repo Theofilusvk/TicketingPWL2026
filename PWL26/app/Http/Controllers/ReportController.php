@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Report;
+use App\Models\Event;
 use Illuminate\Http\Request;
 
 class ReportController extends Controller
@@ -12,7 +13,8 @@ class ReportController extends Controller
      */
     public function index()
     {
-        return response()->json(Report::with('event')->get());
+        $reports = Report::with('event')->get();
+        return view('reports.index', compact('reports'));
     }
 
     /**
@@ -20,7 +22,8 @@ class ReportController extends Controller
      */
     public function create()
     {
-        //
+        $events = Event::all();
+        return view('reports.create', compact('events'));
     }
 
     /**
@@ -32,8 +35,8 @@ class ReportController extends Controller
             'event_id' => 'required|exists:events,event_id',
         ]);
 
-        $report = Report::create($validated);
-        return response()->json($report, 201);
+        Report::create($validated);
+        return redirect()->route('reports.index')->with('success', 'Report created successfully');
     }
 
     /**
@@ -41,11 +44,8 @@ class ReportController extends Controller
      */
     public function show(string $id)
     {
-        $report = Report::with('event')->find($id);
-        if (!$report) {
-            return response()->json(['message' => 'Report not found'], 404);
-        }
-        return response()->json($report);
+        $report = Report::with('event')->findOrFail($id);
+        return view('reports.show', compact('report'));
     }
 
     /**
@@ -53,7 +53,9 @@ class ReportController extends Controller
      */
     public function edit(string $id)
     {
-        //
+        $report = Report::findOrFail($id);
+        $events = Event::all();
+        return view('reports.edit', compact('report', 'events'));
     }
 
     /**
@@ -61,17 +63,14 @@ class ReportController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $report = Report::find($id);
-        if (!$report) {
-            return response()->json(['message' => 'Report not found'], 404);
-        }
+        $report = Report::findOrFail($id);
 
         $validated = $request->validate([
             'event_id' => 'required|exists:events,event_id',
         ]);
 
         $report->update($validated);
-        return response()->json($report);
+        return redirect()->route('reports.index')->with('success', 'Report updated successfully');
     }
 
     /**
@@ -79,12 +78,9 @@ class ReportController extends Controller
      */
     public function destroy(string $id)
     {
-        $report = Report::find($id);
-        if (!$report) {
-            return response()->json(['message' => 'Report not found'], 404);
-        }
-
+        $report = Report::findOrFail($id);
         $report->delete();
-        return response()->json(['message' => 'Report deleted']);
+        
+        return redirect()->route('reports.index')->with('success', 'Report deleted successfully');
     }
 }
