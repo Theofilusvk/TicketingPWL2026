@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\DB;
 use App\Models\Order;
-use App\Models\User;
+use App\Models\OrderItem;
 use App\Models\Event;
-use Illuminate\Http\Request;
+use App\Models\WaitingList;
+use App\Models\Payment;
+
 
 class OrderController extends Controller
 {
@@ -93,7 +96,81 @@ class OrderController extends Controller
     {
         $order = Order::findOrFail($id);
         $order->delete();
-        
+
         return redirect()->route('orders.index')->with('success', 'Order deleted successfully');
+    }
+
+
+    use Illuminate\Support\Facades\DB;
+    use App\Models\Order;
+    use App\Models\OrderItem;
+    use App\Models\Event;
+    use App\Models\WaitingList;
+    use App\Models\Payment;
+
+    public function checkout(Request $request)
+    {
+        DB::beginTransaction();
+
+        try {
+            $total = 0;
+
+            // 1. Buat order
+            $order = Order::create([
+                'user_id' => auth()->id(),
+                'status' => 'pending',
+                'total_price' => 0
+            ]);
+
+            // 2. Loop tiket yang dibeli
+            foreach ($request->items as $item) {
+
+                $event = Event::find($item['event_id']);
+
+                // Kalau stok tidak cukup
+                if ($event->stock < $item['qty']) {
+
+                    // masuk waiting list
+                    WaitingList::create([
+                        'user_id' => auth()->id(),
+                        'event_id' => $event->id
+                    ]);
+
+                    continue;
+                }
+
+                // Kurangi stok
+                $event->decrement('stock', $item['qty']);
+
+                // Simpan item
+                OrderItem::create([
+                    'order_id' => $order->id,
+                    'event_id' => $event->id,
+                    'qty' => $item['qty'],
+                    'price' => $event->price
+                ]);
+
+                $total += $event->price * $item['qty'];
+            }
+
+            // 3. Update total harga
+            $order->update([
+                'total_price' => $total
+            ]);
+
+            // 4. Buat payment
+            Payment::create([
+                'order_id' => $order->id,
+                'status' => 'pending'
+            ]);
+
+            DB::commit();
+
+            return redirect()->route('payments.show', $order->id);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', $e->getMessage());
+        }
     }
 }

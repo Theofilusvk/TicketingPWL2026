@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Report;
 use App\Models\Event;
+use App\Models\Order;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class ReportController extends Controller
@@ -13,8 +15,26 @@ class ReportController extends Controller
      */
     public function index()
     {
+        // 🔥 DATA ANALYTICS
+        $totalRevenue = Order::where('status', 'paid')->sum('total_price');
+        $totalOrders = Order::where('status', 'paid')->count();
+        $totalUsers = User::count();
+        $totalEvents = Event::count();
+
+        // 🔥 DATA REPORT (existing)
         $reports = Report::with('event')->get();
-        return view('reports.index', compact('reports'));
+
+        // 🔥 DATA ORDER UNTUK TABEL
+        $orders = Order::with('user')->latest()->get();
+
+        return view('reports.index', compact(
+            'reports',
+            'totalRevenue',
+            'totalOrders',
+            'totalUsers',
+            'totalEvents',
+            'orders'
+        ));
     }
 
     /**
@@ -32,7 +52,7 @@ class ReportController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'event_id' => 'required|exists:events,event_id',
+            'event_id' => 'required|exists:events,id',
         ]);
 
         Report::create($validated);
@@ -66,7 +86,7 @@ class ReportController extends Controller
         $report = Report::findOrFail($id);
 
         $validated = $request->validate([
-            'event_id' => 'required|exists:events,event_id',
+            'event_id' => 'required|exists:events,id',
         ]);
 
         $report->update($validated);
@@ -80,7 +100,7 @@ class ReportController extends Controller
     {
         $report = Report::findOrFail($id);
         $report->delete();
-        
+
         return redirect()->route('reports.index')->with('success', 'Report deleted successfully');
     }
 }

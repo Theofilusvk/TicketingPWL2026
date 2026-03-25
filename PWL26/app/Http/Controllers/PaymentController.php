@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Payment;
 use App\Models\Order;
 use Illuminate\Http\Request;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\TicketMail;
 
 class PaymentController extends Controller
 {
@@ -86,7 +89,30 @@ class PaymentController extends Controller
     {
         $payment = Payment::findOrFail($id);
         $payment->delete();
-        
+
         return redirect()->route('payments.index')->with('success', 'Payment deleted successfully');
     }
+
+    public function pay($orderId)
+    {
+        $order = Order::findOrFail($orderId);
+
+        $success = rand(0,1);
+
+        if ($success) {
+            $order->update(['status' => 'paid']);
+            $order->payment->update(['status' => 'success']);
+
+            $qr = QrCode::format('png')->size(200)->generate($order->id);
+
+            Mail::to($order->user->email)->send(new TicketMail($order, $qr));
+
+        } else {
+            $order->update(['status' => 'failed']);
+            $order->payment->update(['status' => 'failed']);
+        }
+
+        return redirect()->route('orders.show', $orderId);
+    }
+
 }
