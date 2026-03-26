@@ -8,8 +8,8 @@ class WaitingList extends Model
 {
     protected $table = 'waiting_list';
     protected $primaryKey = 'list_id';
-    public $timestamps = false;
-    protected $fillable = ['event_id', 'user_id', 'status'];
+    public $timestamps = true;
+    protected $fillable = ['event_id', 'user_id', 'ticket_type_id', 'status'];
     
     public function event()
     {
@@ -19,5 +19,10 @@ class WaitingList extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function ticketType()
+    {
+        return $this->belongsTo(TicketType::class, 'ticket_type_id');
     }
 }

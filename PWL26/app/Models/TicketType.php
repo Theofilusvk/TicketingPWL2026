@@ -10,9 +10,14 @@ class TicketType extends Model
     protected $primaryKey = 'ticket_type_id';
     public $timestamps = true;
     protected $fillable = ['event_id', 'name', 'price', 'available_stock'];
-
+    
     public function event()
     {
-        return $this->belongsTo(Event::class, 'event_id', 'event_id');
+        return $this->belongsTo(Event::class, 'event_id');
+    }
+
+    public function waitingLists()
+    {
+        return $this->hasMany(WaitingList::class, 'ticket_type_id');
     }
 }
