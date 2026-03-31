@@ -3,50 +3,73 @@ import { useStore, type Ticket } from '../../lib/store'
 import { useAudio } from '../../lib/audio'
 
 export function AdminScannerPage() {
-  const { ownedTickets, checkInTicket } = useStore()
+  const { ownedTickets } = useStore()
   const { playHoverSound, playClickSound } = useAudio()
   
   const [ticketInput, setTicketInput] = useState('')
   const [scanResult, setScanResult] = useState<{ status: 'IDLE' | 'SUCCESS' | 'ERROR' | 'WARNING'; message: string; ticket?: Ticket }>({ status: 'IDLE', message: '' })
   const [isScanning, setIsScanning] = useState(false)
 
-  const processTicket = (code: string) => {
+  const processTicket = async (code: string) => {
     setIsScanning(true)
     setScanResult({ status: 'IDLE', message: '' })
     
-    // Simulate network/processing delay for visual effect
-    setTimeout(() => {
-      setIsScanning(false)
-      playClickSound() // Or ideally a beep sound
+    try {
+      // Connect to Laravel Backend /api/tickets/validate
+      const response = await fetch('http://127.0.0.1:8000/api/tickets/validate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ unique_code: code })
+      });
       
-      const ticket = ownedTickets.find(t => t.ticketId === code)
+      const result = await response.json();
       
-      if (!ticket) {
-        setScanResult({
-          status: 'ERROR',
-          message: 'INVALID TICKET ID DETECTED',
-        })
-        return
-      }
-
-      if (ticket.status === 'SCANNED') {
-        setScanResult({
-          status: 'WARNING',
-          message: 'TICKET ALREADY SCANNED',
-          ticket
-        })
-        return
+      playClickSound(); // Beep
+      
+      if (!response.ok || result.status === 'error') {
+        const message = result.message || 'INVALID TICKET ID DETECTED';
+        if (message.includes('SUDAH TERPAKAI')) {
+           setScanResult({
+             status: 'WARNING',
+             message: message,
+             ticket: { assignedName: 'Unknown', ticketId: code, eventName: 'Unknown', tier: 'Unknown', id: '', eventId: '', venue: '', date: '', gate: '', orderId: '', purchaseDate: '', status: 'SCANNED' }
+           });
+        } else {
+           setScanResult({
+             status: 'ERROR',
+             message: message,
+           });
+        }
+        return;
       }
 
       // Valid and unused!
-      checkInTicket(ticket.ticketId)
+      if (result.data) {
+         setScanResult({
+           status: 'SUCCESS',
+           message: 'ACCESS GRANTED',
+           ticket: { 
+             assignedName: 'Verified User', 
+             ticketId: result.data.unique_code, 
+             eventName: result.data.order_item_id ? 'Event Ticket' : 'Verified Event', 
+             tier: 'GENERAL', 
+             id: result.data.ticket_id, 
+             eventId: '...', venue: '...', date: '...', gate: '...', orderId: '...', purchaseDate: '...', status: 'VALID' 
+           }
+         });
+      }
+    } catch (err) {
+      console.error(err);
       setScanResult({
-        status: 'SUCCESS',
-        message: 'ACCESS GRANTED',
-        ticket
-      })
-
-    }, 800)
+        status: 'ERROR',
+        message: 'CONNECTION FAILED',
+      });
+    } finally {
+      setIsScanning(false)
+    }
   }
 
   const handleManualSubmit = (e: React.FormEvent) => {
@@ -57,19 +80,14 @@ export function AdminScannerPage() {
   }
 
   const simulateCameraScan = () => {
-    // Pick a random valid ticket to simulate a successful scan
+    // Generate a simulated valid code that might not exist locally but we can try just to see the API response loading state.
+    // Or if local mock tickets exist, pass one of them.
     const validTickets = ownedTickets.filter(t => t.status !== 'SCANNED')
     if (validTickets.length > 0) {
       const target = validTickets[Math.floor(Math.random() * validTickets.length)]
       processTicket(target.ticketId)
     } else {
-      // Pick an already scanned one or just fail
-      const scanned = ownedTickets.filter(t => t.status === 'SCANNED')
-      if (scanned.length > 0) {
-        processTicket(scanned[0].ticketId)
-      } else {
-        processTicket('TKT-UNKNOWN')
-      }
+      processTicket('TKT-MOCK-123')
     }
   }
 

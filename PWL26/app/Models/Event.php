@@ -8,7 +8,7 @@ class Event extends Model
 {
     protected $table = 'events';
     protected $primaryKey = 'event_id';
-    public $timestamps = true;
+    public $timestamps = false;
     protected $fillable = [
         'organizer_id', 
         'category_id', 

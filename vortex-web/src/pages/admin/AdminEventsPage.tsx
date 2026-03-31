@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { useStore, type EventData } from '../../lib/store'
 
 export function AdminEventsPage() {
-  const { events, deleteEvent, addEvent } = useStore()
+  const { events, deleteEvent, addEvent, updateEvent } = useStore()
   const [showModal, setShowModal] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   
-  const [newEvent, setNewEvent] = useState<Partial<EventData>>({
+  const initialFormState: Partial<EventData> = {
     name: '',
     date: '',
     status: 'ACTIVE',
@@ -14,17 +16,80 @@ export function AdminEventsPage() {
     venue: '',
     price: 1500,
     image: 'https://images.unsplash.com/photo-1574391884720-bbc3740c59d1?auto=format&fit=crop&q=80'
-  })
+  }
 
-  const handleAdd = (e: React.FormEvent) => {
+  const [newEvent, setNewEvent] = useState<Partial<EventData>>(initialFormState)
+
+  const openAddModal = () => {
+    setIsEditing(false)
+    setEditingId(null)
+    setNewEvent(initialFormState)
+    setShowModal(true)
+  }
+
+  const openEditModal = (event: EventData) => {
+    setIsEditing(true)
+    setEditingId(event.id)
+    setNewEvent({
+      name: event.name,
+      date: event.date.includes('_') ? event.date.replace(/_/g, '-') : event.date,
+      venue: event.venue,
+      status: event.status,
+      capacity: event.capacity,
+      price: event.price
+    })
+    setShowModal(true)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newEvent.name || !newEvent.date) return
     
-    addEvent({
-      ...newEvent as EventData,
-      id: newEvent.name!.toLowerCase().replace(/\s+/g, '-'),
-    })
-    setShowModal(false)
+    try {
+      const payload = {
+        title: newEvent.name,
+        location: newEvent.venue || 'THE FOUNDRY',
+        start_time: `${newEvent.date} 19:00:00`,
+        end_time: `${newEvent.date} 23:59:59`,
+        organizer_id: 2, 
+        category_id: 1,
+      }
+
+      const url = isEditing 
+        ? `http://127.0.0.1:8000/api/events/${editingId}`
+        : 'http://127.0.0.1:8000/api/events'
+      
+      const response = await fetch(url, {
+        method: isEditing ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.data) {
+        if (isEditing) {
+          updateEvent(editingId!, {
+            ...newEvent,
+            id: editingId!
+          })
+        } else {
+          addEvent({
+            ...(newEvent as EventData),
+            id: result.data.event_id.toString(),
+          })
+        }
+        setShowModal(false)
+        setNewEvent(initialFormState)
+      } else {
+        alert('Action failed: ' + (result.message || 'Validation error'))
+      }
+    } catch (err) {
+      alert('Could not connect to backend.')
+    }
   }
 
   return (
@@ -35,7 +100,7 @@ export function AdminEventsPage() {
           <p className="text-sm font-medium text-white/50 mt-1.5">Add, edit, and monitor global events</p>
         </div>
         <button 
-          onClick={() => setShowModal(true)}
+          onClick={openAddModal}
           className="bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-md text-white font-semibold tracking-wide text-sm px-6 py-3 rounded-2xl transition-all duration-300 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] hover:shadow-[0_8px_32px_-8px_rgba(255,255,255,0.1)] active:scale-95 flex items-center justify-center gap-2 group"
         >
           <span className="material-symbols-outlined text-[20px] group-hover:rotate-90 transition-transform duration-300">add</span>
@@ -85,10 +150,32 @@ export function AdminEventsPage() {
                 </td>
                 <td className="p-5 text-right">
                   <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="text-zinc-500 hover:text-white p-1.5 transition-colors">
+                    <button 
+                      onClick={() => openEditModal(event)}
+                      className="text-zinc-500 hover:text-white p-1.5 transition-colors"
+                    >
                       <span className="material-symbols-outlined text-[18px]">edit</span>
                     </button>
-                    <button onClick={() => deleteEvent(event.id)} className="text-zinc-500 hover:text-rose-400 p-1.5 transition-colors">
+                    <button 
+                      onClick={async () => {
+                        if (confirm('Are you sure you want to delete this event?')) {
+                          try {
+                            const res = await fetch(`http://127.0.0.1:8000/api/events/${event.id}`, {
+                              method: 'DELETE',
+                              headers: { 'Accept': 'application/json' }
+                            });
+                            if (res.ok) {
+                              deleteEvent(event.id);
+                            } else {
+                              alert('Could not delete event from database.');
+                            }
+                          } catch (err) {
+                            alert('Network error.');
+                          }
+                        }
+                      }} 
+                      className="text-zinc-500 hover:text-rose-400 p-1.5 transition-colors"
+                    >
                       <span className="material-symbols-outlined text-[18px]">delete</span>
                     </button>
                   </div>
@@ -105,8 +192,8 @@ export function AdminEventsPage() {
           <div className="bg-black/60 backdrop-blur-[60px] border border-white/[0.15] rounded-[32px] w-full max-w-md p-8 shadow-[0_24px_80px_rgba(0,0,0,0.6)] animate-in zoom-in-95 duration-300 ease-out relative overflow-hidden">
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
             
-            <h2 className="text-2xl font-semibold text-white mb-8 tracking-tight drop-shadow-sm">Initialize Event</h2>
-            <form onSubmit={handleAdd} className="space-y-5">
+            <h2 className="text-2xl font-semibold text-white mb-8 tracking-tight drop-shadow-sm">{isEditing ? 'Update Event' : 'Initialize Event'}</h2>
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
                 <label className="text-[11px] font-semibold text-white/40 uppercase tracking-widest pl-1">Event Name</label>
                 <input 
@@ -133,7 +220,7 @@ export function AdminEventsPage() {
               </div>
               <div className="flex gap-4 pt-6 mt-2">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-3.5 rounded-2xl border border-white/[0.1] text-sm font-semibold text-white/60 hover:text-white hover:bg-white/[0.03] transition-all duration-300">Cancel</button>
-                <button type="submit" className="flex-1 px-4 py-3.5 rounded-2xl bg-white text-black font-semibold text-sm hover:bg-white/90 shadow-[0_0_20px_rgba(255,255,255,0.4)] transition-all duration-300 active:scale-95">Deploy</button>
+                <button type="submit" className="flex-1 px-4 py-3.5 rounded-2xl bg-white text-black font-semibold text-sm hover:bg-white/90 shadow-[0_0_20px_rgba(255,255,255,0.4)] transition-all duration-300 active:scale-95">{isEditing ? 'Save Changes' : 'Deploy'}</button>
               </div>
             </form>
           </div>

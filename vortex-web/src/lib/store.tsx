@@ -180,6 +180,45 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store))
   }, [store])
 
+  // Fetch from Laravel API
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/events')
+        const result = await response.json()
+        if (result.data) {
+          const apiEvents = result.data.map((e: any) => {
+            const ticketTotalSupply = e.ticket_types ? e.ticket_types.reduce((sum: number, tt: any) => sum + Number(tt.available_stock), 0) : 0
+            const mainPrice = e.ticket_types && e.ticket_types.length > 0 ? Number(e.ticket_types[0].price) : 0
+            
+            return {
+              id: e.event_id.toString(),
+              name: e.title,
+              date: e.start_time ? e.start_time.split(' ')[0].replace(/-/g, '_') : 'TBA',
+              status: e.status ? e.status.toUpperCase() : 'ACTIVE',
+              ticketsLeft: ticketTotalSupply,
+              capacity: ticketTotalSupply > 0 ? ticketTotalSupply : 500, // mock capacity
+              venue: e.location || 'THE_FOUNDRY',
+              price: mainPrice,
+              image: e.banner_url ? 'http://127.0.0.1:8000' + e.banner_url : 'https://images.unsplash.com/photo-1574391884720-bbc3740c59d1?auto=format&fit=crop&q=80',
+              colorClasses: 'border-white hover:border-white',
+              btnColor: 'bg-primary text-black'
+            }
+          })
+          
+          setStore(prev => ({
+            ...prev,
+            events: apiEvents.length > 0 ? apiEvents : prev.events
+          }))
+        }
+      } catch (err) {
+        console.error('Failed to fetch events from backend', err)
+      }
+    }
+    
+    fetchEvents()
+  }, [])
+
   const addToCart = (items: CartItem[]) => {
     setStore(prev => ({ ...prev, cart: [...prev.cart, ...items] }))
   }

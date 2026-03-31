@@ -64,13 +64,13 @@ export function EventsPage() {
               </div>
             </div>
 
-            <div className="flex flex-col md:flex-row gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {events.map((e, index) => {
                 const isLocked = e.status === 'LOCKED'
                 return (
                 <div
                   key={e.id}
-                  className={`group flex-1 border-[3px] p-6 transition-all hover:-translate-y-1 bg-black/40 ${e.colorClasses || 'border-zinc-800'}`}
+                  className={`group border-[3px] p-6 transition-all hover:-translate-y-1 bg-black/40 flex flex-col ${e.colorClasses || 'border-zinc-800'}`}
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
                   <div className="flex justify-between items-start mb-6">
@@ -113,7 +113,8 @@ export function EventsPage() {
                   )}
 
                   {/* CTA */}
-                  {isLocked ? (
+                  <div className="mt-auto">
+                    {isLocked ? (
                     <button
                       className="w-full border border-zinc-700 text-zinc-500 px-8 py-4 font-accent font-bold text-xs uppercase cursor-not-allowed tracking-widest text-center relative z-10"
                       disabled
@@ -127,7 +128,8 @@ export function EventsPage() {
                     >
                       GET ACCESS
                     </Link>
-                  )}
+                    )}
+                  </div>
                 </div>
               )})}
             </div>

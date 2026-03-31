@@ -1,0 +1,14 @@
+*************************** 1. row ***************************
+       Table: tickets
+Create Table: CREATE TABLE `tickets` (
+  `ticket_id` int(11) NOT NULL AUTO_INCREMENT,
+  `order_item_id` int(11) NOT NULL,
+  `ticket_code` varchar(100) DEFAULT NULL,
+  `status` enum('valid','used','cancelled') DEFAULT NULL,
+  `qr_code` varchar(255) DEFAULT NULL,
+  `qr_code_path` varchar(255) DEFAULT NULL,
+  `checked_in_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`ticket_id`),
+  KEY `fk_ticket_item` (`order_item_id`),
+  CONSTRAINT `fk_ticket_item` FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`order_item_id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
