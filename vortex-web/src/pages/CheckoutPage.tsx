@@ -9,7 +9,7 @@ type PaymentMethod = 'QRIS' | 'CARD' | 'E-WALLET' | 'CRYPTO'
 export function CheckoutPage() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { cart, checkout } = useStore()
+  const { cart, checkout, events } = useStore()
   const { requestPermission, scheduleNotification, permission } = useNotification()
   
   const [isProcessing, setIsProcessing] = useState(false)
@@ -41,19 +41,22 @@ export function CheckoutPage() {
     // Generate tickets from all checkout items that have ticketId
     const tickets: Ticket[] = checkoutItems
       .filter(item => item.ticketId)
-      .map(item => ({
-        id: `ticket_${Math.random().toString(16).slice(2)}`,
-        eventId: 'neon-chaos-2025',
-        eventName: 'NEON CHAOS 2025',
-        venue: 'UNDISCLOSED WAREHOUSE',
-        date: '2025-02-14',
-        tier: item.phase || 'GENERAL',
-        gate: 'NORTH_02',
-        orderId: `ORD-${Math.random().toString(16).slice(2, 8).toUpperCase()}`,
-        purchaseDate: new Date().toISOString(),
-        assignedName: item.assignedName || 'UNASSIGNED',
-        ticketId: item.ticketId!,
-      }))
+      .map(item => {
+        const event = events.find(e => e.id === item.eventId)
+        return {
+          id: `ticket_${Math.random().toString(16).slice(2)}`,
+          eventId: item.eventId || 'unknown',
+          eventName: event?.name || item.title,
+          venue: event?.venue || 'UNDISCLOSED WAREHOUSE',
+          date: event?.date || '2025-02-14',
+          tier: item.phase || 'GENERAL',
+          gate: 'NORTH_02',
+          orderId: `ORD-${Math.random().toString(16).slice(2, 8).toUpperCase()}`,
+          purchaseDate: new Date().toISOString(),
+          assignedName: item.assignedName || 'UNASSIGNED',
+          ticketId: item.ticketId!,
+        }
+      })
     
     // Simple mock credit logic: 100 credits per unit of currency spent
     const earnedCredits = Math.floor(total * 100)

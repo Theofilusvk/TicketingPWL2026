@@ -11,6 +11,7 @@ export function AdminLayout() {
 
   const navItems = [
     { to: '/admin', icon: 'grid_view', label: 'Dashboard' },
+    { to: '/admin/analytics', icon: 'analytics', label: 'Analytics' },
     { to: '/admin/scanner', icon: 'document_scanner', label: 'Validation' },
     { to: '/admin/venues', icon: 'map', label: 'Venues' },
     { to: '/admin/events', icon: 'stadium', label: 'Events' },

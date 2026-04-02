@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { ShareButton } from '../components/ShareButton'
+import { EmailModal } from '../components/EmailModal'
 import { useAudio } from '../lib/audio'
 
 // Confetti particle system
@@ -119,6 +120,7 @@ function AnimatedCheck() {
 export function SuccessPage() {
   const { playSuccessSound } = useAudio()
   const [stage, setStage] = useState(0)
+  const [showEmailModal, setShowEmailModal] = useState(false)
 
   // Staggered reveal
   useEffect(() => {
@@ -257,6 +259,16 @@ export function SuccessPage() {
                 <span className="font-accent text-[8px] text-zinc-500 tracking-widest uppercase">EXIT_PROCESS</span>
               </div>
             </Link>
+            <button
+              onClick={() => setShowEmailModal(true)}
+              className="flex items-center gap-4 p-5 border border-white/10 hover:border-indigo-400/50 hover:bg-indigo-500/5 transition-all group bg-black/40 hover:shadow-[0_0_20px_rgba(99,102,241,0.05)] text-left"
+            >
+              <span className="material-symbols-outlined text-indigo-400 text-xl group-hover:scale-110 transition-transform">mail</span>
+              <div className="flex flex-col">
+                <span className="font-display text-xl text-white group-hover:text-indigo-400 transition-colors tracking-wide">SEND EMAIL</span>
+                <span className="font-accent text-[8px] text-zinc-500 tracking-widest uppercase">E-TICKET_DELIVERY</span>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -266,6 +278,16 @@ export function SuccessPage() {
         </div>
 
       </main>
+
+      <EmailModal
+        isOpen={showEmailModal}
+        onClose={() => setShowEmailModal(false)}
+        ticketInfo={{
+          eventName: 'NEON CHAOS 2025',
+          ticketId: '#VTX-99281-XC',
+          tier: 'VIP TIER'
+        }}
+      />
     </>
   )
 }

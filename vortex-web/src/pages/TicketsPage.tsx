@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../lib/store'
+import { EmailModal } from '../components/EmailModal'
 
 export function TicketsPage() {
   const [activeTab, setActiveTab] = useState<'ACTIVE' | 'PAST' | 'TRANSFER'>('ACTIVE')
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null)
+  const [showEmailModal, setShowEmailModal] = useState(false)
+  const [emailTicket, setEmailTicket] = useState<{ eventName: string; ticketId: string; tier: string } | null>(null)
   
   const { ownedTickets, deleteTicket } = useStore()
   
@@ -174,6 +177,21 @@ export function TicketsPage() {
                 VIEW_NFT_TICKET
               </Link>
 
+              <button
+                onClick={() => {
+                  setEmailTicket({
+                    eventName: selectedTicket.eventName,
+                    ticketId: selectedTicket.ticketId,
+                    tier: selectedTicket.tier
+                  })
+                  setShowEmailModal(true)
+                }}
+                className="w-full py-3 mt-2 bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 font-bold text-xs uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-sm">mail</span>
+                SEND_TO_EMAIL
+              </button>
+
               <button 
                 onClick={() => {
                   deleteTicket(selectedTicket.ticketId)
@@ -187,6 +205,12 @@ export function TicketsPage() {
           </div>
         </aside>
       )}
+
+      <EmailModal
+        isOpen={showEmailModal}
+        onClose={() => setShowEmailModal(false)}
+        ticketInfo={emailTicket || undefined}
+      />
     </main>
   )
 }
