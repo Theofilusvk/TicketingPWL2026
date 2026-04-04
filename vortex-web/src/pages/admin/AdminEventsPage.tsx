@@ -19,11 +19,13 @@ export function AdminEventsPage() {
   }
 
   const [newEvent, setNewEvent] = useState<Partial<EventData>>(initialFormState)
+  const [bannerFile, setBannerFile] = useState<File | null>(null)
 
   const openAddModal = () => {
     setIsEditing(false)
     setEditingId(null)
     setNewEvent(initialFormState)
+    setBannerFile(null)
     setShowModal(true)
   }
 
@@ -38,6 +40,7 @@ export function AdminEventsPage() {
       capacity: event.capacity,
       price: event.price
     })
+    setBannerFile(null)
     setShowModal(true)
   }
 
@@ -46,13 +49,21 @@ export function AdminEventsPage() {
     if (!newEvent.name || !newEvent.date) return
     
     try {
-      const payload = {
-        title: newEvent.name,
-        location: newEvent.venue || 'THE FOUNDRY',
-        start_time: `${newEvent.date} 19:00:00`,
-        end_time: `${newEvent.date} 23:59:59`,
-        organizer_id: 2, 
-        category_id: 1,
+      const formData = new FormData()
+      formData.append('title', newEvent.name)
+      formData.append('location', newEvent.venue || 'THE FOUNDRY')
+      formData.append('start_time', `${newEvent.date} 19:00:00`)
+      formData.append('end_time', `${newEvent.date} 23:59:59`)
+      formData.append('organizer_id', '2')
+      formData.append('category_id', '1')
+      
+      if (bannerFile) {
+        formData.append('banner', bannerFile)
+      }
+
+      // PHP/Laravel trick for PUT via FormData
+      if (isEditing) {
+        formData.append('_method', 'PUT')
       }
 
       const url = isEditing 
@@ -60,12 +71,11 @@ export function AdminEventsPage() {
         : 'http://127.0.0.1:8000/api/events'
       
       const response = await fetch(url, {
-        method: isEditing ? 'PUT' : 'POST',
+        method: 'POST', // POST is needed to send FormData with files, _method overrides to PUT
         headers: {
-          'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: formData,
       });
 
       const result = await response.json();
@@ -216,6 +226,14 @@ export function AdminEventsPage() {
                   type="text" required 
                   value={newEvent.venue} onChange={e => setNewEvent({...newEvent, venue: e.target.value})}
                   className="w-full bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all duration-300 shadow-inner" 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[11px] font-semibold text-white/40 uppercase tracking-widest pl-1">Banner Image</label>
+                <input 
+                  type="file" accept="image/*"
+                  onChange={e => setBannerFile(e.target.files ? e.target.files[0] : null)}
+                  className="w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[11px] file:font-bold file:uppercase file:tracking-widest file:bg-white/10 file:text-white hover:file:bg-white/20 bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-white/30 transition-all duration-300 shadow-inner" 
                 />
               </div>
               <div className="flex gap-4 pt-6 mt-2">
