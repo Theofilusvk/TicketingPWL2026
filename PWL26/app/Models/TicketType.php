@@ -8,7 +8,7 @@ class TicketType extends Model
 {
     protected $table = 'ticket_types';
     protected $primaryKey = 'ticket_type_id';
-    public $timestamps = true;
+    public $timestamps = false;
     protected $fillable = ['event_id', 'name', 'price', 'available_stock'];
     
     public function event()

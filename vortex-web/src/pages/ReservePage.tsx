@@ -5,7 +5,13 @@ import { useStore, type CartItem } from '../lib/store'
 
 export function ReservePage() {
   const { eventId } = useParams()
-  const title = useMemo(() => (eventId ?? 'EVENT').replaceAll('-', ' ').toUpperCase(), [eventId])
+  const { events } = useStore()
+  const storeEvent = events.find((e) => e.id === eventId)
+  
+  const title = useMemo(() => {
+    if (storeEvent) return storeEvent.name.toUpperCase()
+    return (eventId ?? 'EVENT').replaceAll('-', ' ').toUpperCase()
+  }, [eventId, storeEvent])
 
   const [quantities, setQuantities] = useState<Record<string, number>>({
     general: 0,

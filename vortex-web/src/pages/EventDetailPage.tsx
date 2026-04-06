@@ -3,6 +3,7 @@ import { ShareButton } from '../components/ShareButton'
 import { VenueMap } from '../components/VenueMap'
 import { useState, useEffect, useCallback } from 'react'
 import { AudioPreview } from '../components/AudioPreview'
+import { useStore } from '../lib/store'
 
 const EVENTS_DATA: Record<string, {
   id: string; title: string; date: string; venue: string; location: string
@@ -166,7 +167,25 @@ function GalleryLightbox({ images, initialIndex, onClose }: {
 
 export function EventDetailPage() {
   const { eventId } = useParams()
-  const event = eventId ? EVENTS_DATA[eventId] : null
+  const { events } = useStore()
+  const storeEvent = events.find(e => e.id === eventId)
+  
+  const defaultExtra = EVENTS_DATA['neon-chaos-2025']
+  const event = storeEvent ? {
+    id: storeEvent.id,
+    title: storeEvent.name,
+    date: storeEvent.date,
+    venue: storeEvent.venue,
+    location: defaultExtra.location,
+    description: 'Dynamic Event powered by Laravel DB. ' + defaultExtra.description,
+    status: storeEvent.status === 'ACTIVE' ? 'TICKETS LIVE' : storeEvent.status,
+    gradient: defaultExtra.gradient,
+    lineup: defaultExtra.lineup,
+    schedule: defaultExtra.schedule,
+    faq: defaultExtra.faq,
+    gallery: defaultExtra.gallery
+  } : (eventId && EVENTS_DATA[eventId] ? EVENTS_DATA[eventId] : null)
+  
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
   if (!event) {

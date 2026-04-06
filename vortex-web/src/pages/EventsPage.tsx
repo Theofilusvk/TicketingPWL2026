@@ -76,6 +76,14 @@ export function EventsPage() {
               </div>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {events.map((e, index) => {
+                const isLocked = e.status === 'LOCKED'
+                return (
+                <div
+                  key={e.id}
+                  className={`group border-[3px] p-6 transition-all hover:-translate-y-1 bg-black/40 flex flex-col ${e.colorClasses || 'border-zinc-800'}`}
+                  style={{ animationDelay: `${index * 100}ms` }}
             {/* Category Filter */}
             <div className="flex items-center gap-3 mb-8 flex-wrap">
               <span className="font-accent text-[10px] text-zinc-500 uppercase tracking-widest">/ FILTER:</span>
@@ -174,6 +182,27 @@ export function EventsPage() {
                       <img src={e.image} alt={e.name} className="absolute inset-0 w-full h-full object-cover opacity-60 mix-blend-luminosity group-hover:mix-blend-normal group-hover:opacity-100 transition-all duration-500 group-hover:scale-105" />
                     </div>
 
+                  {/* CTA */}
+                  <div className="mt-auto">
+                    {isLocked ? (
+                    <button
+                      className="w-full border border-zinc-700 text-zinc-500 px-8 py-4 font-accent font-bold text-xs uppercase cursor-not-allowed tracking-widest text-center relative z-10"
+                      disabled
+                    >
+                      LOCKED
+                    </button>
+                  ) : (
+                    <Link
+                      className={`block w-full ${e.btnColor || 'bg-white text-black'} px-8 py-4 font-accent font-bold text-xs uppercase transition-colors tracking-widest text-center border border-primary hover:bg-transparent hover:text-primary relative z-10`}
+                      to={`/reserve/${e.id}`}
+                    >
+                      GET ACCESS
+                    </Link>
+                    )}
+                  </div>
+                </div>
+              )})}
+            </div>
                     {/* Audio Preview — fixed height slot */}
                     <div className="h-[76px] mb-4">
                       {e.audioSrc ? (
