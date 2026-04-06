@@ -182,7 +182,7 @@ export function Header() {
                 </button>
 
                 {showMenu && (
-                  <div className="absolute right-0 top-full mt-4 w-48 glass-card border border-white/10 shadow-[0_0_20px_rgba(203,255,0,0.1)] flex flex-col overflow-hidden animate-in fade-in slide-in-from-top-2">
+                  <div className="absolute right-0 top-full mt-4 w-48 bg-zinc-950 border border-primary/30 shadow-[0_0_20px_rgba(203,255,0,0.1)] flex flex-col overflow-hidden animate-in fade-in slide-in-from-top-2 z-50">
                     <button
                       onClick={() => {
                         playClickSound()

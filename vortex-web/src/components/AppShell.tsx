@@ -86,7 +86,6 @@ export function AppShell() {
     <div className={`min-h-screen ${theme === 'light' ? 'theme-light bg-slate-100 text-zinc-900' : 'bg-background-dark text-slate-100'} transition-colors duration-500`}>
       <CustomCursor />
       <PageLoader />
-      <div className="fixed inset-0 pointer-events-none grid-bg opacity-40 z-0" />
       <ParticleBackground />
       <div className="relative z-10">
         {!isLanding ? <Header /> : null}

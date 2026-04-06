@@ -1,8 +1,12 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
+export type EventCategory = 'Musik' | 'Festival' | 'Konser' | 'Workshop' | 'Seminar' | 'Olahraga' | 'Seni' | 'Lainnya'
+export const EVENT_CATEGORIES: EventCategory[] = ['Musik', 'Festival', 'Konser', 'Workshop', 'Seminar', 'Olahraga', 'Seni', 'Lainnya']
+
 export type CartItem = {
   id: string
   ticketId?: string // specifically for tickets
+  eventId?: string // track which event this ticket belongs to
   title: string
   phase?: string // for tickets
   price: number
@@ -39,6 +43,7 @@ export type EventData = {
   id: string
   name: string
   date: string
+  category: EventCategory
   status: 'ACTIVE' | 'DRAFT' | 'LOCKED' | 'COMPLETED'
   ticketsLeft: number
   capacity: number
@@ -95,6 +100,7 @@ type StoreContextValue = {
   removeFromCart: (id: string) => void
   clearCart: () => void
   checkout: (tickets: Ticket[], earnedCredits: number, cartItemIdsToRemove: string[]) => void
+  getEventStock: (eventId: string) => number
   deleteTicket: (ticketId: string) => void
   checkInTicket: (ticketId: string) => void
   addCredits: (amount: number) => void
@@ -127,9 +133,9 @@ const STORAGE_KEY = 'vortex.store.v1'
 const StoreContext = createContext<StoreContextValue | null>(null)
 
 const defaultEvents: EventData[] = [
-  { id: 'neon-chaos-2025', name: 'NEON CHAOS 2025', date: '2025_02_14', status: 'ACTIVE', ticketsLeft: 145, capacity: 500, venue: 'THE_FOUNDRY', price: 1500, image: 'https://images.unsplash.com/photo-1574391884720-bbc3740c59d1?auto=format&fit=crop&q=80', audioName: 'VOID_ZERO PREVIEW', audioArtist: 'TECHNO', audioSrc: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tours/Enthusiast/Tours_-_01_-_Enthusiast.mp3', colorClasses: 'border-white hover:border-white', btnColor: 'bg-primary text-black' },
-  { id: 'synthwave-nights', name: 'SYNTHWAVE NIGHTS', date: '2025_03_21', status: 'ACTIVE', ticketsLeft: 500, capacity: 500, venue: 'SKY GARDEN', price: 2000, image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&q=80', colorClasses: 'border-white hover:border-white', btnColor: 'bg-secondary text-black' },
-  { id: 'static-pulse', name: 'STATIC PULSE', date: '2025_01_05', status: 'LOCKED', ticketsLeft: 0, capacity: 300, venue: 'VOID_STATION_4', price: 1000, image: 'https://images.unsplash.com/photo-1558317751-c33a8536cc41?auto=format&fit=crop&q=80', audioName: 'NEURAL_SYNC PREVIEW', audioArtist: 'DARK TECHNO', audioSrc: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Broke_For_Free/Directionless_EP/Broke_For_Free_-_01_-_Night_Owl.mp3', colorClasses: 'border-white hover:border-white', btnColor: 'bg-hot-coral text-black' },
+  { id: 'neon-chaos-2025', name: 'NEON CHAOS 2025', date: '2025_02_14', category: 'Festival', status: 'ACTIVE', ticketsLeft: 145, capacity: 500, venue: 'THE_FOUNDRY', price: 1500, image: 'https://images.unsplash.com/photo-1574391884720-bbc3740c59d1?auto=format&fit=crop&q=80', audioName: 'VOID_ZERO PREVIEW', audioArtist: 'TECHNO', audioSrc: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tours/Enthusiast/Tours_-_01_-_Enthusiast.mp3', colorClasses: 'border-white hover:border-white', btnColor: 'bg-primary text-black' },
+  { id: 'synthwave-nights', name: 'SYNTHWAVE NIGHTS', date: '2025_03_21', category: 'Konser', status: 'ACTIVE', ticketsLeft: 500, capacity: 500, venue: 'SKY GARDEN', price: 2000, image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&q=80', colorClasses: 'border-white hover:border-white', btnColor: 'bg-secondary text-black' },
+  { id: 'static-pulse', name: 'STATIC PULSE', date: '2025_01_05', category: 'Musik', status: 'LOCKED', ticketsLeft: 0, capacity: 300, venue: 'VOID_STATION_4', price: 1000, image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&q=80', audioName: 'NEURAL_SYNC PREVIEW', audioArtist: 'DARK TECHNO', audioSrc: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Broke_For_Free/Directionless_EP/Broke_For_Free_-_01_-_Night_Owl.mp3', colorClasses: 'border-white hover:border-white', btnColor: 'bg-hot-coral text-black' },
 ]
 
 const defaultDrops: DropData[] = [
@@ -158,12 +164,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (saved) {
       try {
         const parsed = JSON.parse(saved)
+        // Migrate old events: add missing category + fix broken image URLs
+        const migratedEvents = (parsed.events || defaultEvents).map((e: any) => {
+          const defaultMatch = defaultEvents.find(d => d.id === e.id)
+          const patched = { ...e }
+          if (!patched.category) {
+            patched.category = defaultMatch?.category || 'Lainnya'
+          }
+          if (patched.id === 'static-pulse' && patched.image?.includes('photo-1558317751')) {
+            patched.image = defaultMatch?.image || patched.image
+          }
+          return patched
+        })
         return { 
           cart: parsed.cart || [], 
           ownedTickets: parsed.ownedTickets || [], 
           credits: parsed.credits || 0, 
           orderHistory: parsed.orderHistory || [],
-          events: parsed.events || defaultEvents,
+          events: migratedEvents,
           drops: parsed.drops || defaultDrops,
           news: parsed.news || defaultNews,
           users: parsed.users || defaultUsers
@@ -248,14 +266,35 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         total: total + (total * 0.08) + (removedItems.some(i => i.ticketId) ? 12.5 : 5.0),
         creditsEarned: earnedCredits
       }
+      // Automatic stock management: decrement ticketsLeft per event
+      const ticketCountByEvent: Record<string, number> = {}
+      removedItems.forEach(item => {
+        if (item.ticketId && item.eventId) {
+          ticketCountByEvent[item.eventId] = (ticketCountByEvent[item.eventId] || 0) + 1
+        }
+      })
+      const updatedEvents = prev.events.map(e => {
+        const sold = ticketCountByEvent[e.id]
+        if (sold) {
+          const newLeft = Math.max(0, e.ticketsLeft - sold)
+          return { ...e, ticketsLeft: newLeft, status: newLeft === 0 ? 'LOCKED' as const : e.status }
+        }
+        return e
+      })
       return {
         ...prev,
         cart: prev.cart.filter(item => !cartItemIdsToRemove.includes(item.id)),
         ownedTickets: [...prev.ownedTickets, ...tickets],
         credits: prev.credits + earnedCredits,
-        orderHistory: [...prev.orderHistory, newOrder]
+        orderHistory: [...prev.orderHistory, newOrder],
+        events: updatedEvents
       }
     })
+  }
+
+  const getEventStock = (eventId: string): number => {
+    const event = store.events.find(e => e.id === eventId)
+    return event?.ticketsLeft ?? 0
   }
 
   const deleteTicket = (ticketId: string) => {
@@ -324,6 +363,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     removeFromCart,
     clearCart,
     checkout,
+    getEventStock,
     deleteTicket,
     checkInTicket,
     addCredits,

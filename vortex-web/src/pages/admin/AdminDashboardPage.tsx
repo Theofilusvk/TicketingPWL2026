@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useStore } from '../../lib/store'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import * as XLSX from 'xlsx'
 
 export function AdminDashboardPage() {
-  const { orderHistory, ownedTickets, users } = useStore()
+  const { orderHistory, ownedTickets, users, events } = useStore()
+  const [showExportMenu, setShowExportMenu] = useState(false)
 
   // Derive real metrics from store + baselines for the aesthetic
   const [metrics, setMetrics] = useState({
@@ -50,11 +54,103 @@ export function AdminDashboardPage() {
     return null
   }
 
+  const handleExportPDF = () => {
+    const doc = new jsPDF()
+    doc.setFontSize(20)
+    doc.text('Vortex Platform Report', 14, 22)
+    doc.setFontSize(10)
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30)
+    doc.setFontSize(12)
+    doc.text(`Total Revenue: CRD ${metrics.totalRevenue.toLocaleString()}`, 14, 42)
+    doc.text(`Tickets Sold: ${metrics.ticketsSold.toLocaleString()}`, 14, 50)
+    doc.text(`Active Users: ${metrics.activeUsers.toLocaleString()}`, 14, 58)
+    doc.text(`Support Alerts: ${metrics.supportTickets}`, 14, 66)
+    doc.setFontSize(14)
+    doc.text('Event Summary', 14, 82)
+    const tableData = events.map(e => [
+      e.name, e.category || 'N/A', e.date, e.venue,
+      `${e.capacity - e.ticketsLeft}/${e.capacity}`,
+      `CRD ${((e.capacity - e.ticketsLeft) * e.price).toLocaleString()}`,
+      e.status
+    ])
+    autoTable(doc, {
+      startY: 88,
+      head: [['Event', 'Category', 'Date', 'Venue', 'Tickets Sold', 'Revenue', 'Status']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: { fillColor: [99, 102, 241] },
+    })
+    doc.save('vortex-report.pdf')
+    setShowExportMenu(false)
+  }
+
+  const handleExportExcel = () => {
+    const eventsData = events.map(e => ({
+      'Event Name': e.name,
+      'Category': e.category || 'N/A',
+      'Date': e.date,
+      'Venue': e.venue,
+      'Capacity': e.capacity,
+      'Tickets Left': e.ticketsLeft,
+      'Tickets Sold': e.capacity - e.ticketsLeft,
+      'Price': e.price,
+      'Revenue': (e.capacity - e.ticketsLeft) * e.price,
+      'Status': e.status,
+    }))
+    const ordersData = orderHistory.map(o => ({
+      'Order ID': o.id,
+      'Date': new Date(o.date).toLocaleString(),
+      'Items': o.items.map(i => i.title).join(', '),
+      'Total': o.total,
+      'Credits Earned': o.creditsEarned,
+    }))
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(eventsData), 'Events')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ordersData), 'Orders')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{
+      'Total Revenue': metrics.totalRevenue,
+      'Tickets Sold': metrics.ticketsSold,
+      'Active Users': metrics.activeUsers,
+      'Support Alerts': metrics.supportTickets,
+    }]), 'Summary')
+    XLSX.writeFile(wb, 'vortex-report.xlsx')
+    setShowExportMenu(false)
+  }
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700 ease-out z-10 relative pb-12">
-      <div>
-        <h1 className="text-4xl font-semibold text-white tracking-tight drop-shadow-md">System Overview</h1>
-        <p className="text-sm font-medium text-white/50 mt-1.5">Global platform metrics and status</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-4xl font-semibold text-white tracking-tight drop-shadow-md">System Overview</h1>
+          <p className="text-sm font-medium text-white/50 mt-1.5">Global platform metrics and status</p>
+        </div>
+        <div className="relative">
+          <button
+            onClick={() => setShowExportMenu(!showExportMenu)}
+            className="bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-md text-white font-semibold tracking-wide text-sm px-6 py-3 rounded-2xl transition-all duration-300 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] hover:shadow-[0_8px_32px_-8px_rgba(255,255,255,0.1)] active:scale-95 flex items-center justify-center gap-2 group"
+          >
+            <span className="material-symbols-outlined text-[20px]">download</span>
+            Export Report
+          </button>
+          {showExportMenu && (
+            <div className="absolute right-0 top-full mt-2 w-48 bg-black/80 backdrop-blur-xl border border-white/[0.15] rounded-2xl overflow-hidden shadow-[0_16px_48px_rgba(0,0,0,0.5)] z-50">
+              <button
+                onClick={handleExportPDF}
+                className="w-full px-4 py-3 text-left text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors flex items-center gap-3"
+              >
+                <span className="material-symbols-outlined text-[18px] text-rose-400">picture_as_pdf</span>
+                Export as PDF
+              </button>
+              <button
+                onClick={handleExportExcel}
+                className="w-full px-4 py-3 text-left text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors flex items-center gap-3 border-t border-white/[0.05]"
+              >
+                <span className="material-symbols-outlined text-[18px] text-emerald-400">table_view</span>
+                Export as Excel
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

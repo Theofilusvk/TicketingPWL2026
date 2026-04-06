@@ -19,7 +19,9 @@ export function ReservePage() {
     elite: 0,
   })
 
-  const { cart, addToCart } = useStore()
+  const { cart, addToCart, getEventStock } = useStore()
+  const availableStock = eventId ? getEventStock(eventId) : 0
+  const ticketsInCart = cart.filter(c => c.eventId === eventId && c.ticketId).length
 
   const [pendingSelection, setPendingSelection] = useState<{
     tierId: string;
@@ -41,6 +43,13 @@ export function ReservePage() {
   const handleAddToCartClick = (tierId: string, itemTitle: string, phase: string, price: number) => {
     const qty = quantities[tierId]
     if (qty <= 0) return
+
+    // Stock validation
+    const remainingStock = availableStock - ticketsInCart
+    if (qty > remainingStock) {
+      alert(`Stok tidak mencukupi! Sisa tiket tersedia: ${remainingStock}`)
+      return
+    }
 
     setPendingSelection({ tierId, title: itemTitle, phase, price, qty })
     setAssignmentData(Array(qty).fill({ name: '', phone: '' }))
@@ -65,6 +74,7 @@ export function ReservePage() {
 
     const newItems: CartItem[] = assignmentData.map((data) => ({
       id: Math.random().toString(36).substr(2, 9),
+      eventId: eventId || undefined,
       title: pendingSelection.title,
       phase: pendingSelection.phase,
       price: pendingSelection.price,

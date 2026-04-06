@@ -1,15 +1,19 @@
-import { useState } from 'react'
-import { useStore, type EventData } from '../../lib/store'
+import { useState, useRef } from 'react'
+import { useStore, type EventData, EVENT_CATEGORIES, type EventCategory } from '../../lib/store'
 
 export function AdminEventsPage() {
   const { events, deleteEvent, addEvent, updateEvent } = useStore()
   const [showModal, setShowModal] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
   
   const initialFormState: Partial<EventData> = {
     name: '',
     date: '',
+    category: 'Musik',
     status: 'ACTIVE',
     ticketsLeft: 500,
     capacity: 500,
@@ -100,6 +104,44 @@ export function AdminEventsPage() {
     } catch (err) {
       alert('Could not connect to backend.')
     }
+  const handleBannerUpload = (file: File) => {
+    if (!file.type.startsWith('image/')) return
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const result = e.target?.result as string
+      setBannerPreview(result)
+      setNewEvent(prev => ({ ...prev, image: result }))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files[0]
+    if (file) handleBannerUpload(file)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleAdd = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newEvent.name || !newEvent.date) return
+    
+    addEvent({
+      ...newEvent as EventData,
+      id: newEvent.name!.toLowerCase().replace(/\s+/g, '-'),
+    })
+    setShowModal(false)
+    setBannerPreview(null)
+    setNewEvent({
+      name: '', date: '', category: 'Musik', status: 'ACTIVE',
+      ticketsLeft: 500, capacity: 500, venue: '', price: 1500,
+      image: 'https://images.unsplash.com/photo-1574391884720-bbc3740c59d1?auto=format&fit=crop&q=80'
+    })
   }
 
   return (
@@ -126,6 +168,7 @@ export function AdminEventsPage() {
               <tr className="border-b border-white/[0.05]">
                 <th className="p-5 text-[11px] font-semibold text-white/40 uppercase tracking-widest whitespace-nowrap">System ID</th>
                 <th className="p-5 text-[11px] font-semibold text-white/40 uppercase tracking-widest whitespace-nowrap">Event Name</th>
+                <th className="p-5 text-[11px] font-semibold text-white/40 uppercase tracking-widest whitespace-nowrap">Kategori</th>
                 <th className="p-5 text-[11px] font-semibold text-white/40 uppercase tracking-widest whitespace-nowrap">Date</th>
                 <th className="p-5 text-[11px] font-semibold text-white/40 uppercase tracking-widest whitespace-nowrap">Capacity</th>
                 <th className="p-5 text-[11px] font-semibold text-white/40 uppercase tracking-widest whitespace-nowrap">Status</th>
@@ -137,6 +180,11 @@ export function AdminEventsPage() {
               <tr key={event.id} className="hover:bg-white/[0.03] transition-colors duration-300 group">
                 <td className="p-5 font-mono text-xs text-white/40 tracking-wider">#{event.id.split('-')[0].toUpperCase()}</td>
                 <td className="p-5 font-semibold text-sm text-white/90">{event.name}</td>
+                <td className="p-5">
+                  <span className="inline-flex px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full border backdrop-blur-md bg-white/5 text-white/60 border-white/10">
+                    {event.category || 'N/A'}
+                  </span>
+                </td>
                 <td className="p-5 text-sm font-medium text-white/60">{event.date}</td>
                 <td className="p-5">
                   <div className="flex items-center gap-3 max-w-[150px]">
@@ -199,7 +247,7 @@ export function AdminEventsPage() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-all duration-500">
-          <div className="bg-black/60 backdrop-blur-[60px] border border-white/[0.15] rounded-[32px] w-full max-w-md p-8 shadow-[0_24px_80px_rgba(0,0,0,0.6)] animate-in zoom-in-95 duration-300 ease-out relative overflow-hidden">
+          <div className="bg-black/60 backdrop-blur-[60px] border border-white/[0.15] rounded-[32px] w-full max-w-lg p-8 shadow-[0_24px_80px_rgba(0,0,0,0.6)] animate-in zoom-in-95 duration-300 ease-out relative overflow-hidden max-h-[90vh] overflow-y-auto">
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
             
             <h2 className="text-2xl font-semibold text-white mb-8 tracking-tight drop-shadow-sm">{isEditing ? 'Update Event' : 'Initialize Event'}</h2>
@@ -212,21 +260,86 @@ export function AdminEventsPage() {
                   className="w-full bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all duration-300 placeholder:text-white/20 shadow-inner" 
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-[11px] font-semibold text-white/40 uppercase tracking-widest pl-1">Date</label>
-                <input 
-                  type="date" required 
-                  value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})}
-                  className="w-full bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all duration-300 [color-scheme:dark] shadow-inner" 
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[11px] font-semibold text-white/40 uppercase tracking-widest pl-1">Date</label>
+                  <input 
+                    type="date" required 
+                    value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})}
+                    className="w-full bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all duration-300 [color-scheme:dark] shadow-inner" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] font-semibold text-white/40 uppercase tracking-widest pl-1">Kategori</label>
+                  <select
+                    value={newEvent.category}
+                    onChange={e => setNewEvent({...newEvent, category: e.target.value as EventCategory})}
+                    className="w-full bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all duration-300 shadow-inner [color-scheme:dark] appearance-none cursor-pointer"
+                  >
+                    {EVENT_CATEGORIES.map(cat => (
+                      <option key={cat} value={cat} className="bg-zinc-900 text-white">{cat}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[11px] font-semibold text-white/40 uppercase tracking-widest pl-1">Venue</label>
+                  <input 
+                    type="text" required 
+                    value={newEvent.venue} onChange={e => setNewEvent({...newEvent, venue: e.target.value})}
+                    className="w-full bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all duration-300 shadow-inner" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] font-semibold text-white/40 uppercase tracking-widest pl-1">Capacity</label>
+                  <input 
+                    type="number" min="1"
+                    value={newEvent.capacity} onChange={e => setNewEvent({...newEvent, capacity: Number(e.target.value), ticketsLeft: Number(e.target.value)})}
+                    className="w-full bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all duration-300 shadow-inner" 
+                  />
+                </div>
+              </div>
+
+              {/* Banner Upload */}
               <div className="space-y-2">
-                <label className="text-[11px] font-semibold text-white/40 uppercase tracking-widest pl-1">Venue</label>
-                <input 
-                  type="text" required 
-                  value={newEvent.venue} onChange={e => setNewEvent({...newEvent, venue: e.target.value})}
-                  className="w-full bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all duration-300 shadow-inner" 
-                />
+                <label className="text-[11px] font-semibold text-white/40 uppercase tracking-widest pl-1">Event Banner</label>
+                <div
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={() => setIsDragging(false)}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`relative w-full h-40 rounded-2xl border-2 border-dashed cursor-pointer transition-all duration-300 overflow-hidden ${
+                    isDragging 
+                      ? 'border-indigo-400 bg-indigo-500/10' 
+                      : 'border-white/[0.15] bg-white/[0.03] hover:border-white/30 hover:bg-white/[0.05]'
+                  }`}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => {
+                      const file = e.target.files?.[0]
+                      if (file) handleBannerUpload(file)
+                    }}
+                  />
+                  {bannerPreview ? (
+                    <div className="absolute inset-0">
+                      <img src={bannerPreview} alt="Banner preview" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                        <span className="text-white text-sm font-medium">Click to change</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                      <span className="material-symbols-outlined text-3xl text-white/30">cloud_upload</span>
+                      <p className="text-xs font-medium text-white/40">Drag & drop or click to upload</p>
+                      <p className="text-[10px] text-white/20">PNG, JPG, WebP (max 5MB)</p>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-[11px] font-semibold text-white/40 uppercase tracking-widest pl-1">Banner Image</label>
@@ -239,6 +352,10 @@ export function AdminEventsPage() {
               <div className="flex gap-4 pt-6 mt-2">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-3.5 rounded-2xl border border-white/[0.1] text-sm font-semibold text-white/60 hover:text-white hover:bg-white/[0.03] transition-all duration-300">Cancel</button>
                 <button type="submit" className="flex-1 px-4 py-3.5 rounded-2xl bg-white text-black font-semibold text-sm hover:bg-white/90 shadow-[0_0_20px_rgba(255,255,255,0.4)] transition-all duration-300 active:scale-95">{isEditing ? 'Save Changes' : 'Deploy'}</button>
+
+              <div className="flex gap-4 pt-6 mt-2">
+                <button type="button" onClick={() => { setShowModal(false); setBannerPreview(null) }} className="flex-1 px-4 py-3.5 rounded-2xl border border-white/[0.1] text-sm font-semibold text-white/60 hover:text-white hover:bg-white/[0.03] transition-all duration-300">Cancel</button>
+                <button type="submit" className="flex-1 px-4 py-3.5 rounded-2xl bg-white text-black font-semibold text-sm hover:bg-white/90 shadow-[0_0_20px_rgba(255,255,255,0.4)] transition-all duration-300 active:scale-95">Deploy</button>
               </div>
             </form>
           </div>
