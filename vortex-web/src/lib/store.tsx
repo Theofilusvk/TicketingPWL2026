@@ -1,7 +1,15 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
-export type EventCategory = 'Musik' | 'Festival' | 'Konser' | 'Workshop' | 'Seminar' | 'Olahraga' | 'Seni' | 'Lainnya'
-export const EVENT_CATEGORIES: EventCategory[] = ['Musik', 'Festival', 'Konser', 'Workshop', 'Seminar', 'Olahraga', 'Seni', 'Lainnya']
+export type EventCategory = string
+
+// Fallback categories used when API is unavailable
+export const DEFAULT_CATEGORIES: string[] = ['Musik', 'Festival', 'Konser', 'Workshop', 'Seminar', 'Olahraga', 'Seni', 'Lainnya']
+
+export type CategoryData = {
+  id: number
+  name: string
+  description?: string
+}
 
 export type CartItem = {
   id: string
@@ -43,7 +51,7 @@ export type EventData = {
   id: string
   name: string
   date: string
-  category: EventCategory
+  category: string
   status: 'ACTIVE' | 'DRAFT' | 'LOCKED' | 'COMPLETED'
   ticketsLeft: number
   capacity: number
@@ -91,6 +99,7 @@ type StoreContextValue = {
   ownedTickets: Ticket[]
   orderHistory: OrderHistoryItem[]
   events: EventData[]
+  categories: CategoryData[]
   drops: DropData[]
   news: NewsData[]
   users: UserAccount[]
@@ -198,7 +207,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store))
   }, [store])
 
-  // Fetch from Laravel API
+  // Fetch categories from Laravel API
+  const [categories, setCategories] = useState<CategoryData[]>([])
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/categories')
+        const result = await response.json()
+        if (result.data) {
+          const apiCategories: CategoryData[] = result.data.map((c: any) => ({
+            id: c.category_id,
+            name: c.name,
+            description: c.description || ''
+          }))
+          console.log('Database Categories Loaded:', apiCategories)
+          setCategories(apiCategories)
+        }
+      } catch (err) {
+        console.error('Failed to fetch categories from backend', err)
+      }
+    }
+    fetchCategories()
+  }, [])
+
+  // Fetch events from Laravel API
   useEffect(() => {
     const fetchEvents = async () => {
       try {
@@ -214,13 +247,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                activeImage = e.banner_url.startsWith('http') ? e.banner_url : (e.banner_url.startsWith('/') ? 'http://127.0.0.1:8000' + e.banner_url : 'http://127.0.0.1:8000/' + e.banner_url);
             }
 
+            // Map category from the API response
+            const categoryName = e.category ? e.category.name : 'Lainnya'
+
             return {
               id: e.event_id.toString(),
               name: e.title,
               date: e.start_time ? e.start_time.split(' ')[0].replace(/-/g, '_') : 'TBA',
+              category: categoryName,
               status: e.status ? e.status.toUpperCase() : 'ACTIVE',
               ticketsLeft: ticketTotalSupply,
-              capacity: ticketTotalSupply > 0 ? ticketTotalSupply : 500, // mock capacity
+              capacity: ticketTotalSupply > 0 ? ticketTotalSupply : 500,
               venue: e.location || 'THE_FOUNDRY',
               price: mainPrice,
               image: activeImage,
@@ -229,7 +266,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             }
           })
           
-          console.log("Database Events Loaded:", apiEvents);
+          console.log('Database Events Loaded:', apiEvents)
           setStore(prev => ({
             ...prev,
             events: apiEvents
@@ -358,6 +395,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<StoreContextValue>(() => ({
     ...store,
+    categories,
     tier,
     addToCart,
     removeFromCart,
@@ -379,7 +417,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     updateUserTier,
     updateUserBalance,
     deleteUser
-  }), [store, tier])
+  }), [store, categories, tier])
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
 }
