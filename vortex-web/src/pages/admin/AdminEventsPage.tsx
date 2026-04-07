@@ -104,6 +104,8 @@ export function AdminEventsPage() {
     } catch (err) {
       alert('Could not connect to backend.')
     }
+  }
+
   const handleBannerUpload = (file: File) => {
     if (!file.type.startsWith('image/')) return
     const reader = new FileReader()
@@ -127,22 +129,7 @@ export function AdminEventsPage() {
     setIsDragging(true)
   }
 
-  const handleAdd = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newEvent.name || !newEvent.date) return
-    
-    addEvent({
-      ...newEvent as EventData,
-      id: newEvent.name!.toLowerCase().replace(/\s+/g, '-'),
-    })
-    setShowModal(false)
-    setBannerPreview(null)
-    setNewEvent({
-      name: '', date: '', category: 'Musik', status: 'ACTIVE',
-      ticketsLeft: 500, capacity: 500, venue: '', price: 1500,
-      image: 'https://images.unsplash.com/photo-1574391884720-bbc3740c59d1?auto=format&fit=crop&q=80'
-    })
-  }
+
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-700 ease-out transition-all z-10 relative">
@@ -350,12 +337,8 @@ export function AdminEventsPage() {
                 />
               </div>
               <div className="flex gap-4 pt-6 mt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-3.5 rounded-2xl border border-white/[0.1] text-sm font-semibold text-white/60 hover:text-white hover:bg-white/[0.03] transition-all duration-300">Cancel</button>
-                <button type="submit" className="flex-1 px-4 py-3.5 rounded-2xl bg-white text-black font-semibold text-sm hover:bg-white/90 shadow-[0_0_20px_rgba(255,255,255,0.4)] transition-all duration-300 active:scale-95">{isEditing ? 'Save Changes' : 'Deploy'}</button>
-
-              <div className="flex gap-4 pt-6 mt-2">
                 <button type="button" onClick={() => { setShowModal(false); setBannerPreview(null) }} className="flex-1 px-4 py-3.5 rounded-2xl border border-white/[0.1] text-sm font-semibold text-white/60 hover:text-white hover:bg-white/[0.03] transition-all duration-300">Cancel</button>
-                <button type="submit" className="flex-1 px-4 py-3.5 rounded-2xl bg-white text-black font-semibold text-sm hover:bg-white/90 shadow-[0_0_20px_rgba(255,255,255,0.4)] transition-all duration-300 active:scale-95">Deploy</button>
+                <button type="submit" className="flex-1 px-4 py-3.5 rounded-2xl bg-white text-black font-semibold text-sm hover:bg-white/90 shadow-[0_0_20px_rgba(255,255,255,0.4)] transition-all duration-300 active:scale-95">{isEditing ? 'Save Changes' : 'Deploy'}</button>
               </div>
             </form>
           </div>

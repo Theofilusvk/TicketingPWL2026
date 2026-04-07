@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useState, useEffect, useMemo } from 'react'
 import { NewsFeed } from '../components/NewsFeed'
 import { useStore } from '../lib/store'
-import { AudioPreview } from '../components/AudioPreview'
+
 
 export function EventsPage() {
   const { tier, ownedTickets, events } = useStore()
@@ -76,14 +76,6 @@ export function EventsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {events.map((e, index) => {
-                const isLocked = e.status === 'LOCKED'
-                return (
-                <div
-                  key={e.id}
-                  className={`group border-[3px] p-6 transition-all hover:-translate-y-1 bg-black/40 flex flex-col ${e.colorClasses || 'border-zinc-800'}`}
-                  style={{ animationDelay: `${index * 100}ms` }}
             {/* Category Filter */}
             <div className="flex items-center gap-3 mb-8 flex-wrap">
               <span className="font-accent text-[10px] text-zinc-500 uppercase tracking-widest">/ FILTER:</span>
@@ -203,43 +195,6 @@ export function EventsPage() {
                 </div>
               )})}
             </div>
-                    {/* Audio Preview — fixed height slot */}
-                    <div className="h-[76px] mb-4">
-                      {e.audioSrc ? (
-                        <AudioPreview 
-                          src={e.audioSrc} 
-                          title={e.audioName || 'UNKNOWN TRACK'} 
-                          artist={e.audioArtist || 'UNKNOWN ARTIST'} 
-                          color={e.id === 'neon-chaos-2025' ? '#CBFF00' : e.id === 'static-pulse' ? '#FF4D4D' : '#00F0FF'}
-                        />
-                      ) : (
-                        <div className="w-full h-full border border-zinc-800/50 flex items-center justify-center bg-black/20 rounded-lg">
-                          <span className="font-accent text-[8px] text-zinc-700 uppercase tracking-widest">NO AUDIO PREVIEW</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* CTA — pushed to bottom */}
-                    <div className="mt-auto">
-                      {isLocked || isSoldOut ? (
-                        <button
-                          className="w-full border border-zinc-700 text-zinc-500 px-8 py-4 font-accent font-bold text-xs uppercase cursor-not-allowed tracking-widest text-center"
-                          disabled
-                        >
-                          {isSoldOut ? 'SOLD OUT' : 'LOCKED'}
-                        </button>
-                      ) : (
-                        <Link
-                          className={`block w-full ${e.btnColor || 'bg-white text-black'} px-8 py-4 font-accent font-bold text-xs uppercase transition-colors tracking-widest text-center border border-primary hover:bg-transparent hover:text-primary`}
-                          to={`/reserve/${e.id}`}
-                        >
-                          GET ACCESS
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                )})}
-              </div>
             )}
           </div>
 
