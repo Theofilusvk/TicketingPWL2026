@@ -43,7 +43,7 @@ export type EventData = {
   id: string
   name: string
   date: string
-  category: EventCategory
+  categories: EventCategory[]
   status: 'ACTIVE' | 'DRAFT' | 'LOCKED' | 'COMPLETED'
   ticketsLeft: number
   capacity: number
@@ -55,6 +55,13 @@ export type EventData = {
   audioSrc?: string
   colorClasses?: string
   btnColor?: string
+  description?: string
+  lineup?: string
+  schedule?: string
+  venueMapUrl?: string
+  gallery?: string[]
+  faq?: string
+  location?: string
 }
 
 export type DropData = {
@@ -86,6 +93,41 @@ export type UserAccount = {
   lastActive: string
 }
 
+export type Notification = {
+  id: string
+  type: 'EMAIL_BLAST' | 'REMINDER' | 'PAYMENT' | 'TICKET' | 'WAITLIST' | 'REFUND' | 'REVIEW'
+  title: string
+  message: string
+  eventId?: string
+  timestamp: string
+  read: boolean
+}
+
+export type RefundRequest = {
+  id: string
+  ticketId: string
+  eventId: string
+  eventName: string
+  userId: string
+  userName: string
+  reason: string
+  amount: number
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  requestDate: string
+  resolvedDate?: string
+}
+
+export type EventReview = {
+  id: string
+  eventId: string
+  userId: string
+  userName: string
+  rating: number
+  comment: string
+  checkedIn: boolean
+  createdAt: string
+}
+
 type StoreContextValue = {
   cart: CartItem[]
   ownedTickets: Ticket[]
@@ -94,6 +136,9 @@ type StoreContextValue = {
   drops: DropData[]
   news: NewsData[]
   users: UserAccount[]
+  notifications: Notification[]
+  refundRequests: RefundRequest[]
+  reviews: EventReview[]
   credits: number
   tier: string
   addToCart: (items: CartItem[]) => void
@@ -118,6 +163,22 @@ type StoreContextValue = {
   updateUserTier: (id: string, tier: string) => void
   updateUserBalance: (id: string, amount: number) => void
   deleteUser: (id: string) => void
+
+  // Notification actions
+  addNotification: (n: Notification) => void
+  markNotificationRead: (id: string) => void
+  markAllNotificationsRead: () => void
+  sendEmailBlast: (eventId: string, subject: string, body: string) => void
+
+  // Refund actions
+  requestRefund: (req: RefundRequest) => void
+  approveRefund: (id: string) => void
+  rejectRefund: (id: string) => void
+  autoCancelEvent: (eventId: string) => void
+
+  // Review actions
+  addReview: (review: EventReview) => void
+  getEventReviews: (eventId: string) => EventReview[]
 }
 
 function calculateTier(credits: number): string {
@@ -133,9 +194,9 @@ const STORAGE_KEY = 'vortex.store.v1'
 const StoreContext = createContext<StoreContextValue | null>(null)
 
 const defaultEvents: EventData[] = [
-  { id: 'neon-chaos-2025', name: 'NEON CHAOS 2025', date: '2025_02_14', category: 'Festival', status: 'ACTIVE', ticketsLeft: 145, capacity: 500, venue: 'THE_FOUNDRY', price: 1500, image: 'https://images.unsplash.com/photo-1574391884720-bbc3740c59d1?auto=format&fit=crop&q=80', audioName: 'VOID_ZERO PREVIEW', audioArtist: 'TECHNO', audioSrc: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tours/Enthusiast/Tours_-_01_-_Enthusiast.mp3', colorClasses: 'border-white hover:border-white', btnColor: 'bg-primary text-black' },
-  { id: 'synthwave-nights', name: 'SYNTHWAVE NIGHTS', date: '2025_03_21', category: 'Konser', status: 'ACTIVE', ticketsLeft: 500, capacity: 500, venue: 'SKY GARDEN', price: 2000, image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&q=80', colorClasses: 'border-white hover:border-white', btnColor: 'bg-secondary text-black' },
-  { id: 'static-pulse', name: 'STATIC PULSE', date: '2025_01_05', category: 'Musik', status: 'LOCKED', ticketsLeft: 0, capacity: 300, venue: 'VOID_STATION_4', price: 1000, image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&q=80', audioName: 'NEURAL_SYNC PREVIEW', audioArtist: 'DARK TECHNO', audioSrc: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Broke_For_Free/Directionless_EP/Broke_For_Free_-_01_-_Night_Owl.mp3', colorClasses: 'border-white hover:border-white', btnColor: 'bg-hot-coral text-black' },
+  { id: 'neon-chaos-2025', name: 'NEON CHAOS 2025', date: '2025_02_14', categories: ['Festival', 'Musik'], status: 'ACTIVE', ticketsLeft: 145, capacity: 500, venue: 'THE_FOUNDRY', price: 1500, image: 'https://images.unsplash.com/photo-1574391884720-bbc3740c59d1?auto=format&fit=crop&q=80', audioName: 'VOID_ZERO PREVIEW', audioArtist: 'TECHNO', audioSrc: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tours/Enthusiast/Tours_-_01_-_Enthusiast.mp3', colorClasses: 'border-white hover:border-white', btnColor: 'bg-primary text-black' },
+  { id: 'synthwave-nights', name: 'SYNTHWAVE NIGHTS', date: '2025_03_21', categories: ['Konser'], status: 'ACTIVE', ticketsLeft: 500, capacity: 500, venue: 'SKY GARDEN', price: 2000, image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&q=80', colorClasses: 'border-white hover:border-white', btnColor: 'bg-secondary text-black' },
+  { id: 'static-pulse', name: 'STATIC PULSE', date: '2025_01_05', categories: ['Musik'], status: 'LOCKED', ticketsLeft: 0, capacity: 300, venue: 'VOID_STATION_4', price: 1000, image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&q=80', audioName: 'NEURAL_SYNC PREVIEW', audioArtist: 'DARK TECHNO', audioSrc: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Broke_For_Free/Directionless_EP/Broke_For_Free_-_01_-_Night_Owl.mp3', colorClasses: 'border-white hover:border-white', btnColor: 'bg-hot-coral text-black', description: 'Experience the pure resonance of the Void.', lineup: 'DJ Dark, Syntax Error, Null Pointer', schedule: '20:00 - Gates\n21:00 - Opening\n23:00 - Headliner', faq: 'Q: Is there parking?\nA: No, use teleporters.' },
 ]
 
 const defaultDrops: DropData[] = [
@@ -159,7 +220,7 @@ const defaultUsers: UserAccount[] = [
 ]
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
-  const [store, setStore] = useState<{ cart: CartItem[]; ownedTickets: Ticket[]; credits: number; orderHistory: OrderHistoryItem[]; events: EventData[]; drops: DropData[]; news: NewsData[]; users: UserAccount[] }>(() => {
+  const [store, setStore] = useState<{ cart: CartItem[]; ownedTickets: Ticket[]; credits: number; orderHistory: OrderHistoryItem[]; events: EventData[]; drops: DropData[]; news: NewsData[]; users: UserAccount[]; notifications: Notification[]; refundRequests: RefundRequest[]; reviews: EventReview[] }>(() => {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved) {
       try {
@@ -168,8 +229,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const migratedEvents = (parsed.events || defaultEvents).map((e: any) => {
           const defaultMatch = defaultEvents.find(d => d.id === e.id)
           const patched = { ...e }
-          if (!patched.category) {
-            patched.category = defaultMatch?.category || 'Lainnya'
+          if (!patched.categories || !Array.isArray(patched.categories) || patched.categories.length === 0) {
+            patched.categories = patched.category ? [patched.category] : (defaultMatch?.categories || ['Lainnya'])
           }
           if (patched.id === 'static-pulse' && patched.image?.includes('photo-1558317751')) {
             patched.image = defaultMatch?.image || patched.image
@@ -184,13 +245,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           events: migratedEvents,
           drops: parsed.drops || defaultDrops,
           news: parsed.news || defaultNews,
-          users: parsed.users || defaultUsers
+          users: parsed.users || defaultUsers,
+          notifications: parsed.notifications || [],
+          refundRequests: parsed.refundRequests || [],
+          reviews: parsed.reviews || []
         }
       } catch (e) {
         // ignore
       }
     }
-    return { cart: [], ownedTickets: [], credits: 0, orderHistory: [], events: defaultEvents, drops: defaultDrops, news: defaultNews, users: defaultUsers }
+    return { cart: [], ownedTickets: [], credits: 0, orderHistory: [], events: defaultEvents, drops: defaultDrops, news: defaultNews, users: defaultUsers, notifications: [], refundRequests: [], reviews: [] }
   })
 
   // Sync to local storage
@@ -309,6 +373,122 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     users: prev.users.filter(u => u.id !== id)
   }))
 
+  // ─── Notification Actions ───
+  const addNotification = (n: Notification) => setStore(prev => ({
+    ...prev,
+    notifications: [n, ...prev.notifications]
+  }))
+
+  const markNotificationRead = (id: string) => setStore(prev => ({
+    ...prev,
+    notifications: prev.notifications.map(n => n.id === id ? { ...n, read: true } : n)
+  }))
+
+  const markAllNotificationsRead = () => setStore(prev => ({
+    ...prev,
+    notifications: prev.notifications.map(n => ({ ...n, read: true }))
+  }))
+
+  const sendEmailBlast = (eventId: string, subject: string, body: string) => {
+    const event = store.events.find(e => e.id === eventId)
+    if (!event) return
+    const n: Notification = {
+      id: `notif-${Date.now()}`,
+      type: 'EMAIL_BLAST',
+      title: subject,
+      message: body,
+      eventId,
+      timestamp: new Date().toISOString(),
+      read: false
+    }
+    addNotification(n)
+  }
+
+  // ─── Refund Actions ───
+  const requestRefund = (req: RefundRequest) => setStore(prev => ({
+    ...prev,
+    refundRequests: [req, ...prev.refundRequests]
+  }))
+
+  const approveRefund = (id: string) => setStore(prev => {
+    const req = prev.refundRequests.find(r => r.id === id)
+    if (!req) return prev
+    return {
+      ...prev,
+      refundRequests: prev.refundRequests.map(r => r.id === id ? { ...r, status: 'APPROVED' as const, resolvedDate: new Date().toISOString() } : r),
+      ownedTickets: prev.ownedTickets.filter(t => t.ticketId !== req.ticketId),
+      credits: prev.credits + req.amount,
+      notifications: [{
+        id: `notif-refund-${Date.now()}`,
+        type: 'REFUND' as const,
+        title: 'REFUND APPROVED',
+        message: `Your refund of CRD ${req.amount.toLocaleString()} for ${req.eventName} has been approved.`,
+        eventId: req.eventId,
+        timestamp: new Date().toISOString(),
+        read: false
+      }, ...prev.notifications]
+    }
+  })
+
+  const rejectRefund = (id: string) => setStore(prev => ({
+    ...prev,
+    refundRequests: prev.refundRequests.map(r => r.id === id ? { ...r, status: 'REJECTED' as const, resolvedDate: new Date().toISOString() } : r),
+    notifications: [{
+      id: `notif-reject-${Date.now()}`,
+      type: 'REFUND' as const,
+      title: 'REFUND REJECTED',
+      message: `Your refund request has been rejected by the organizer.`,
+      timestamp: new Date().toISOString(),
+      read: false
+    }, ...prev.notifications]
+  }))
+
+  const autoCancelEvent = (eventId: string) => setStore(prev => {
+    const event = prev.events.find(e => e.id === eventId)
+    if (!event) return prev
+    const affectedTickets = prev.ownedTickets.filter(t => t.eventId === eventId)
+    const newRefunds: RefundRequest[] = affectedTickets.map(t => ({
+      id: `ref-auto-${t.ticketId}`,
+      ticketId: t.ticketId,
+      eventId,
+      eventName: event.name,
+      userId: 'system',
+      userName: t.assignedName,
+      reason: 'Event cancelled by organizer',
+      amount: event.price,
+      status: 'APPROVED' as const,
+      requestDate: new Date().toISOString(),
+      resolvedDate: new Date().toISOString()
+    }))
+    const totalRefund = affectedTickets.length * event.price
+    return {
+      ...prev,
+      events: prev.events.map(e => e.id === eventId ? { ...e, status: 'LOCKED' as const } : e),
+      ownedTickets: prev.ownedTickets.filter(t => t.eventId !== eventId),
+      refundRequests: [...newRefunds, ...prev.refundRequests],
+      credits: prev.credits + totalRefund,
+      notifications: [{
+        id: `notif-cancel-${Date.now()}`,
+        type: 'REFUND' as const,
+        title: 'EVENT CANCELLED',
+        message: `${event.name} has been cancelled. CRD ${totalRefund.toLocaleString()} refunded to your account.`,
+        eventId,
+        timestamp: new Date().toISOString(),
+        read: false
+      }, ...prev.notifications]
+    }
+  })
+
+  // ─── Review Actions ───
+  const addReview = (review: EventReview) => setStore(prev => ({
+    ...prev,
+    reviews: [review, ...prev.reviews]
+  }))
+
+  const getEventReviews = (eventId: string): EventReview[] => {
+    return store.reviews.filter(r => r.eventId === eventId)
+  }
+
   const tier = useMemo(() => calculateTier(store.credits), [store.credits])
 
   const value = useMemo<StoreContextValue>(() => ({
@@ -333,7 +513,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     deleteNews,
     updateUserTier,
     updateUserBalance,
-    deleteUser
+    deleteUser,
+    addNotification,
+    markNotificationRead,
+    markAllNotificationsRead,
+    sendEmailBlast,
+    requestRefund,
+    approveRefund,
+    rejectRefund,
+    autoCancelEvent,
+    addReview,
+    getEventReviews
   }), [store, tier])
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ShareButton } from '../components/ShareButton'
 import { EmailModal } from '../components/EmailModal'
 import { useAudio } from '../lib/audio'
+import { useAuth } from '../lib/auth'
 
 // Confetti particle system
 function ConfettiCanvas() {
@@ -119,10 +120,12 @@ function AnimatedCheck() {
 
 export function SuccessPage() {
   const { playSuccessSound } = useAudio()
+  const { user } = useAuth()
   const [stage, setStage] = useState(0)
   const [showEmailModal, setShowEmailModal] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
 
-  // Staggered reveal
+  // Staggered reveal + auto-open email modal
   useEffect(() => {
     playSuccessSound()
     const timers = [
@@ -130,6 +133,8 @@ export function SuccessPage() {
       setTimeout(() => setStage(2), 800),
       setTimeout(() => setStage(3), 1300),
       setTimeout(() => setStage(4), 1800),
+      // Auto-open EmailModal after animations complete
+      setTimeout(() => setShowEmailModal(true), 2500),
     ]
     return () => timers.forEach(clearTimeout)
   }, [])
@@ -259,16 +264,15 @@ export function SuccessPage() {
                 <span className="font-accent text-[8px] text-zinc-500 tracking-widest uppercase">EXIT_PROCESS</span>
               </div>
             </Link>
-            <button
-              onClick={() => setShowEmailModal(true)}
-              className="flex items-center gap-4 p-5 border border-white/10 hover:border-indigo-400/50 hover:bg-indigo-500/5 transition-all group bg-black/40 hover:shadow-[0_0_20px_rgba(99,102,241,0.05)] text-left"
+            <div
+              className="flex items-center gap-4 p-5 border border-emerald-500/30 bg-emerald-500/5 group"
             >
-              <span className="material-symbols-outlined text-indigo-400 text-xl group-hover:scale-110 transition-transform">mail</span>
+              <span className="material-symbols-outlined text-emerald-400 text-xl">check_circle</span>
               <div className="flex flex-col">
-                <span className="font-display text-xl text-white group-hover:text-indigo-400 transition-colors tracking-wide">SEND EMAIL</span>
-                <span className="font-accent text-[8px] text-zinc-500 tracking-widest uppercase">E-TICKET_DELIVERY</span>
+                <span className="font-display text-xl text-emerald-400 tracking-wide">{emailSent ? 'EMAIL SENT' : 'SENDING...'}</span>
+                <span className="font-accent text-[8px] text-zinc-500 tracking-widest uppercase">E-TICKET AUTO_DELIVERED</span>
               </div>
-            </button>
+            </div>
           </div>
         </div>
 
@@ -281,12 +285,13 @@ export function SuccessPage() {
 
       <EmailModal
         isOpen={showEmailModal}
-        onClose={() => setShowEmailModal(false)}
+        onClose={() => { setShowEmailModal(false); setEmailSent(true) }}
         ticketInfo={{
           eventName: 'NEON CHAOS 2025',
           ticketId: '#VTX-99281-XC',
           tier: 'VIP TIER'
         }}
+        autoSendEmail={user?.email}
       />
     </>
   )

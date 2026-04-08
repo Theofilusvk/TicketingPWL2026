@@ -32,8 +32,10 @@ export function AdminAnalyticsPage() {
   const categoryData = useMemo(() => {
     const counts: Record<string, number> = {}
     events.forEach(e => {
-      const cat = e.category || 'Lainnya'
-      counts[cat] = (counts[cat] || 0) + 1
+      const cats = (e.categories && e.categories.length > 0) ? e.categories : ['Lainnya']
+      cats.forEach(cat => {
+        counts[cat] = (counts[cat] || 0) + 1
+      })
     })
     return Object.entries(counts).map(([name, value]) => ({ name, value }))
   }, [events])
@@ -110,7 +112,7 @@ export function AdminAnalyticsPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                 <XAxis dataKey="name" stroke="rgba(255,255,255,0.3)" fontSize={10} tickLine={false} axisLine={false} />
                 <YAxis stroke="rgba(255,255,255,0.3)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `${v / 1000}k`} />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} isAnimationActive={false} />
                 <Bar dataKey="revenue" fill="#818cf8" radius={[8, 8, 0, 0]} name="Revenue" />
               </BarChart>
             </ResponsiveContainer>
@@ -137,7 +139,7 @@ export function AdminAnalyticsPage() {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<CustomTooltip />} cursor={false} isAnimationActive={false} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -172,7 +174,7 @@ export function AdminAnalyticsPage() {
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
               <XAxis dataKey="month" stroke="rgba(255,255,255,0.3)" fontSize={12} tickLine={false} axisLine={false} />
               <YAxis stroke="rgba(255,255,255,0.3)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v / 1000}k`} />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip />} cursor={false} isAnimationActive={false} />
               <Area type="monotone" dataKey="revenue" stroke="#818cf8" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" name="Revenue" />
               <Area type="monotone" dataKey="tickets" stroke="#38bdf8" strokeWidth={2} fillOpacity={1} fill="url(#colorTickets)" name="Tickets" />
             </AreaChart>
@@ -207,7 +209,13 @@ export function AdminAnalyticsPage() {
                   <tr key={event.id} className="hover:bg-white/[0.03] transition-colors duration-300">
                     <td className="p-5 font-semibold text-sm text-white/90">{event.name}</td>
                     <td className="p-5">
-                      <span className="inline-flex px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest rounded-full border bg-white/5 text-white/60 border-white/10">{event.category}</span>
+                      <div className="flex flex-wrap gap-1">
+                        {event.categories && event.categories.length > 0 ? event.categories.map((cat, i) => (
+                           <span key={i} className="inline-flex px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest rounded-full border bg-white/5 text-white/60 border-white/10">{cat}</span>
+                        )) : (
+                           <span className="inline-flex px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest rounded-full border bg-white/5 text-white/60 border-white/10">N/A</span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-5 font-mono text-sm text-white/70">{sold.toLocaleString()}</td>
                     <td className="p-5 font-mono text-sm text-indigo-300">CRD {rev.toLocaleString()}</td>

@@ -2,14 +2,21 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../lib/store'
 import { EmailModal } from '../components/EmailModal'
+import { useAuth } from '../lib/auth'
+
+const REFUND_REASONS = ['Changed Plans', 'Event Too Far', 'Financial Reasons', 'Schedule Conflict', 'Other']
 
 export function TicketsPage() {
   const [activeTab, setActiveTab] = useState<'ACTIVE' | 'PAST' | 'TRANSFER'>('ACTIVE')
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null)
   const [showEmailModal, setShowEmailModal] = useState(false)
   const [emailTicket, setEmailTicket] = useState<{ eventName: string; ticketId: string; tier: string } | null>(null)
+  const [showRefundModal, setShowRefundModal] = useState(false)
+  const [refundReason, setRefundReason] = useState(REFUND_REASONS[0])
+  const [refundDetail, setRefundDetail] = useState('')
   
-  const { ownedTickets, deleteTicket } = useStore()
+  const { ownedTickets, deleteTicket, requestRefund, refundRequests, events } = useStore()
+  const { user } = useAuth()
   
   const selectedTicket = ownedTickets.find(t => t.ticketId === selectedTicketId)
 
@@ -67,8 +74,15 @@ export function TicketsPage() {
                   onClick={() => setSelectedTicketId(ticket.ticketId)}
                   className={`group relative glass-card p-1 overflow-hidden cursor-pointer transition-all border-2 ${isSelected ? 'border-primary shadow-[0_0_20px_rgba(203,255,0,0.2)]' : 'border-transparent hover:border-primary/50 bg-black/40'}`}
                 >
-                  <div className="absolute top-2 right-2 border border-accent text-accent font-accent text-[8px] tracking-widest px-2 py-0.5 z-10 rounded-full bg-black/50">
-                    LIVE_NOW
+                  <div className="absolute top-2 right-2 flex flex-col gap-1 items-end z-10">
+                    <span className="border border-accent text-accent font-accent text-[8px] tracking-widest px-2 py-0.5 rounded-full bg-black/50">
+                      {ticket.status === 'SCANNED' ? 'CHECKED_IN' : 'LIVE_NOW'}
+                    </span>
+                    {refundRequests.some(r => r.ticketId === ticket.ticketId && r.status === 'PENDING') && (
+                      <span className="border border-amber-500/40 text-amber-400 font-accent text-[8px] tracking-widest px-2 py-0.5 rounded-full bg-black/50">
+                        REFUND_PENDING
+                      </span>
+                    )}
                   </div>
                   <div className="flex flex-col h-full">
                     <div
@@ -192,6 +206,26 @@ export function TicketsPage() {
                 SEND_TO_EMAIL
               </button>
 
+              {selectedTicket.status !== 'SCANNED' && !refundRequests.some(r => r.ticketId === selectedTicket.ticketId) && (
+                <button
+                  onClick={() => setShowRefundModal(true)}
+                  className="w-full py-3 mt-2 bg-amber-500/10 text-amber-300 border border-amber-500/30 font-bold text-xs uppercase tracking-widest hover:bg-amber-500 hover:text-black transition-all flex items-center justify-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-sm">currency_exchange</span>
+                  REQUEST_REFUND
+                </button>
+              )}
+              {refundRequests.some(r => r.ticketId === selectedTicket.ticketId && r.status === 'PENDING') && (
+                <div className="w-full py-3 mt-2 bg-amber-500/5 border border-amber-500/20 text-amber-400 text-center font-bold text-[10px] uppercase tracking-widest rounded">
+                  ⏳ Refund request pending review
+                </div>
+              )}
+              {refundRequests.some(r => r.ticketId === selectedTicket.ticketId && r.status === 'REJECTED') && (
+                <div className="w-full py-3 mt-2 bg-rose-500/5 border border-rose-500/20 text-rose-400 text-center font-bold text-[10px] uppercase tracking-widest rounded">
+                  ✗ Refund request rejected
+                </div>
+              )}
+
               <button 
                 onClick={() => {
                   deleteTicket(selectedTicket.ticketId)
@@ -204,6 +238,58 @@ export function TicketsPage() {
             </div>
           </div>
         </aside>
+      )}
+
+      {/* Refund Modal */}
+      {showRefundModal && selectedTicket && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-950 border border-primary/30 w-full max-w-md p-8 animate-in zoom-in-95 duration-300">
+            <h2 className="font-display text-2xl text-primary mb-6">REQUEST_REFUND</h2>
+            <div className="space-y-4">
+              <div>
+                <p className="font-accent text-[9px] text-zinc-500 uppercase tracking-widest mb-2">Event</p>
+                <p className="text-sm font-bold text-white">{selectedTicket.eventName}</p>
+              </div>
+              <div>
+                <p className="font-accent text-[9px] text-zinc-500 uppercase tracking-widest mb-2">Reason</p>
+                <select value={refundReason} onChange={e => setRefundReason(e.target.value)} className="w-full bg-black border border-primary/20 p-3 text-sm text-white [color-scheme:dark] appearance-none">
+                  {REFUND_REASONS.map(r => <option key={r} value={r} className="bg-black">{r}</option>)}
+                </select>
+              </div>
+              <div>
+                <p className="font-accent text-[9px] text-zinc-500 uppercase tracking-widest mb-2">Details (Optional)</p>
+                <textarea rows={3} value={refundDetail} onChange={e => setRefundDetail(e.target.value)} className="w-full bg-black border border-primary/20 p-3 text-sm text-white resize-none focus:outline-none" placeholder="Additional details..." />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button onClick={() => { setShowRefundModal(false); setRefundDetail('') }} className="flex-1 py-3 border border-zinc-700 text-zinc-400 font-bold text-xs uppercase tracking-widest hover:bg-zinc-800 transition-all">
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    const ev = events.find(e => e.id === selectedTicket.eventId)
+                    requestRefund({
+                      id: `ref-${Date.now()}`,
+                      ticketId: selectedTicket.ticketId,
+                      eventId: selectedTicket.eventId,
+                      eventName: selectedTicket.eventName,
+                      userId: user?.email || 'user',
+                      userName: selectedTicket.assignedName,
+                      reason: `${refundReason}${refundDetail ? ': ' + refundDetail : ''}`,
+                      amount: ev?.price || 0,
+                      status: 'PENDING',
+                      requestDate: new Date().toISOString()
+                    })
+                    setShowRefundModal(false)
+                    setRefundDetail('')
+                  }}
+                  className="flex-1 py-3 bg-primary text-black font-bold text-xs uppercase tracking-widest hover:bg-primary/80 transition-all"
+                >
+                  Submit Request
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       <EmailModal

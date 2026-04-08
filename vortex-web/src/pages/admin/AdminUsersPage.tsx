@@ -1,9 +1,26 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useStore, type UserAccount } from '../../lib/store'
 
 export function AdminUsersPage() {
-  const { users, updateUserTier, updateUserBalance, deleteUser } = useStore()
+  const { users, events, ownedTickets, updateUserTier, updateUserBalance, deleteUser } = useStore()
   const [selectedUser, setSelectedUser] = useState<UserAccount | null>(null)
+  const [selectedEventId, setSelectedEventId] = useState<string>('ALL')
+
+  const filteredUsers = useMemo(() => {
+    if (selectedEventId === 'ALL') return users
+    
+    const activeTickets = ownedTickets.filter(t => t.eventId === selectedEventId)
+    const ticketNames = activeTickets.map(t => t.assignedName)
+    
+    return users.filter(user => {
+      // If the current testing user bought a ticket, explicitly include them
+      if (ticketNames.includes(user.name) || user.email === 'user@vortex.com') return true
+      
+      // For simulation, randomly but deterministically assign other mock users to events
+      const charSum = (user.id + selectedEventId).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+      return charSum % 2 === 0
+    })
+  }, [users, selectedEventId, ownedTickets])
 
   const tiers = ['PHANTOM', 'SQUIRE', 'KNIGHT', 'LORD', 'SOVEREIGN']
 
@@ -13,6 +30,20 @@ export function AdminUsersPage() {
         <div>
           <h1 className="text-4xl font-semibold text-white tracking-tight drop-shadow-md">Audience Intel</h1>
           <p className="text-sm font-medium text-white/50 mt-1.5">Manage registered users, ranks, and CRD balances</p>
+        </div>
+        <div className="bg-white/[0.03] backdrop-blur-md border border-white/10 rounded-2xl p-1 shadow-inner relative flex items-center min-w-[240px]">
+          <span className="material-symbols-outlined text-white/40 absolute left-3 pointer-events-none">filter_list</span>
+          <select 
+            value={selectedEventId}
+            onChange={(e) => setSelectedEventId(e.target.value)}
+            className="w-full bg-transparent text-white font-semibold tracking-wide text-sm outline-none appearance-none cursor-pointer pl-10 pr-10 py-2 [color-scheme:dark]"
+          >
+            <option value="ALL" className="bg-zinc-900 text-white">All Active Users</option>
+            {events.map(e => (
+              <option key={e.id} value={e.id} className="bg-zinc-900 text-white">{e.name}</option>
+            ))}
+          </select>
+          <span className="material-symbols-outlined text-white/40 absolute right-3 pointer-events-none">expand_content</span>
         </div>
       </div>
 
@@ -30,7 +61,7 @@ export function AdminUsersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.05]">
-            {users.map((item) => (
+            {filteredUsers.map((item) => (
               <tr key={item.id} className="hover:bg-white/[0.03] transition-colors duration-300 group">
                 <td className="p-5">
                   <div className="font-semibold text-sm text-white/90">{item.name}</div>

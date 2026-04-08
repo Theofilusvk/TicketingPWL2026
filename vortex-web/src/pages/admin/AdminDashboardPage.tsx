@@ -68,7 +68,7 @@ export function AdminDashboardPage() {
     doc.setFontSize(14)
     doc.text('Event Summary', 14, 82)
     const tableData = events.map(e => [
-      e.name, e.category || 'N/A', e.date, e.venue,
+      e.name, (e.categories && e.categories.length > 0) ? e.categories.join(', ') : 'N/A', e.date, e.venue,
       `${e.capacity - e.ticketsLeft}/${e.capacity}`,
       `CRD ${((e.capacity - e.ticketsLeft) * e.price).toLocaleString()}`,
       e.status
@@ -87,7 +87,7 @@ export function AdminDashboardPage() {
   const handleExportExcel = () => {
     const eventsData = events.map(e => ({
       'Event Name': e.name,
-      'Category': e.category || 'N/A',
+      'Category': (e.categories && e.categories.length > 0) ? e.categories.join(', ') : 'N/A',
       'Date': e.date,
       'Venue': e.venue,
       'Capacity': e.capacity,

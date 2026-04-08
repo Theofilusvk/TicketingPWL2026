@@ -30,6 +30,21 @@ body,
   body {
     cursor: none;
   }
+  *, *::before, *::after {
+    cursor: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+  }
+  input, textarea, select, [contenteditable="true"] {
+    cursor: text !important;
+    user-select: auto !important;
+    -webkit-user-select: auto !important;
+  }
+}
+
+/* Fix for Recharts focus outline when clicked */
+.recharts-wrapper, .recharts-wrapper *, .recharts-surface {
+  outline: none !important;
 }
 
 @media (pointer: coarse) {

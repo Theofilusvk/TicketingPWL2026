@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 interface EmailModalProps {
   isOpen: boolean
@@ -8,22 +8,35 @@ interface EmailModalProps {
     ticketId: string
     tier: string
   }
+  autoSendEmail?: string
 }
 
 type SendStatus = 'idle' | 'sending' | 'success' | 'error'
 
-export function EmailModal({ isOpen, onClose, ticketInfo }: EmailModalProps) {
+export function EmailModal({ isOpen, onClose, ticketInfo, autoSendEmail }: EmailModalProps) {
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<SendStatus>('idle')
   const [progress, setProgress] = useState(0)
+  const autoSendTriggered = useRef(false)
 
   useEffect(() => {
     if (!isOpen) {
       setEmail('')
       setStatus('idle')
       setProgress(0)
+      autoSendTriggered.current = false
     }
   }, [isOpen])
+
+  // Auto-send when autoSendEmail is provided and modal opens
+  useEffect(() => {
+    if (isOpen && autoSendEmail && !autoSendTriggered.current && status === 'idle') {
+      autoSendTriggered.current = true
+      setEmail(autoSendEmail)
+      setStatus('sending')
+      setProgress(0)
+    }
+  }, [isOpen, autoSendEmail, status])
 
   useEffect(() => {
     if (status === 'sending') {

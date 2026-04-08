@@ -221,7 +221,7 @@ export function LandingPage() {
 
   return (
     <div ref={rootRef} className="font-body text-white selection:bg-electric-lime selection:text-dark-base">
-      <header className="relative min-h-screen flex flex-col grid-bg" id="hero">
+      <header className="relative min-h-screen flex flex-col" id="hero">
         <nav className="w-full p-6 flex justify-between items-center z-50">
           <div className="font-display text-4xl tracking-tighter text-electric-lime">VORTEX</div>
           <div className="space-x-8 font-accent text-xs uppercase hidden md:flex">

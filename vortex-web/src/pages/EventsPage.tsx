@@ -30,13 +30,13 @@ export function EventsPage() {
 
   // Derive available categories from events
   const usedCategories = useMemo(() => {
-    const cats = [...new Set(events.map(e => e.category).filter(Boolean))]
+    const cats = [...new Set(events.flatMap(e => e.categories || []).filter(Boolean))]
     return cats
   }, [events])
 
   const filteredEvents = useMemo(() => {
     if (activeCategory === 'SEMUA') return events
-    return events.filter(e => e.category === activeCategory)
+    return events.filter(e => e.categories?.includes(activeCategory as any))
   }, [events, activeCategory])
 
   return (
@@ -148,13 +148,13 @@ export function EventsPage() {
                       </Link>
                     </div>
 
-                    {/* Category Badge + Stock */}
-                    <div className="flex flex-wrap items-center gap-2 mb-4 h-6">
-                      {e.category && (
-                        <span className="bg-white/5 text-zinc-300 border border-zinc-700 px-2 py-0.5 font-accent text-[8px] uppercase tracking-widest">
-                          {e.category}
+                    {/* Category Badges + Stock */}
+                    <div className="flex flex-wrap items-center gap-2 mb-4 min-h-[24px]">
+                      {e.categories && e.categories.map((cat, i) => (
+                        <span key={i} className="bg-white/5 text-zinc-300 border border-zinc-700 px-2 py-0.5 font-accent text-[8px] uppercase tracking-widest">
+                          {cat}
                         </span>
-                      )}
+                      ))}
                       <span className={`flex items-center gap-1.5 px-2 py-0.5 font-accent text-[8px] uppercase tracking-widest border ${
                         e.ticketsLeft > 50 ? 'border-primary/20 text-primary' :
                         e.ticketsLeft > 0 ? 'border-amber-500/20 text-amber-400' :

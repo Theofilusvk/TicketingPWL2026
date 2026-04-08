@@ -1,8 +1,10 @@
 import { useParams, Link } from 'react-router-dom'
 import { ShareButton } from '../components/ShareButton'
 import { VenueMap } from '../components/VenueMap'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useStore } from '../lib/store'
 import { AudioPreview } from '../components/AudioPreview'
+import { ReviewSection } from '../components/ReviewSection'
 
 const EVENTS_DATA: Record<string, {
   id: string; title: string; date: string; venue: string; location: string
@@ -166,8 +168,61 @@ function GalleryLightbox({ images, initialIndex, onClose }: {
 
 export function EventDetailPage() {
   const { eventId } = useParams()
-  const event = eventId ? EVENTS_DATA[eventId] : null
+  const { events } = useStore()
+  
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+
+  const event = useMemo(() => {
+    const staticData = eventId ? EVENTS_DATA[eventId] : null
+    const storeEvent = events.find(e => e.id === eventId)
+
+    if (!storeEvent && !staticData) return null
+
+    let lineup = staticData?.lineup || []
+    if (storeEvent && storeEvent.lineup) {
+      lineup = storeEvent.lineup.split(',').map(item => ({ name: item.trim(), role: 'SUPPORT', time: 'TBA' }))
+    }
+
+    let schedule = staticData?.schedule || []
+    if (storeEvent && storeEvent.schedule) {
+      schedule = storeEvent.schedule.split('\n').filter(Boolean).map(line => {
+        const parts = line.split('-')
+        return { time: parts[0]?.trim() || 'TBA', activity: parts[1]?.trim() || line.trim() }
+      })
+    }
+
+    let faq = staticData?.faq || []
+    if (storeEvent && storeEvent.faq) {
+      const faqLines = storeEvent.faq.split('\n').filter(l => l.trim())
+      const parsedFaqs = []
+      for(let i = 0; i < faqLines.length; i+=2) {
+        if (faqLines[i].startsWith('Q:')) {
+          parsedFaqs.push({
+            q: faqLines[i].replace('Q:', '').trim(),
+            a: faqLines[i+1] ? faqLines[i+1].replace('A:', '').trim() : ''
+          })
+        }
+      }
+      if (parsedFaqs.length > 0) faq = parsedFaqs
+    }
+
+    return {
+      id: (storeEvent?.id || staticData?.id) as string,
+      title: (storeEvent?.name || staticData?.title) as string,
+      date: (storeEvent?.date || staticData?.date) as string,
+      venue: (storeEvent?.venue || staticData?.venue) as string,
+      location: storeEvent?.location || staticData?.location || 'Undisclosed Location',
+      description: storeEvent?.description || staticData?.description || 'No description available for this event.',
+      status: storeEvent?.status === 'ACTIVE' ? (storeEvent.ticketsLeft > 0 ? 'TICKETS LIVE' : 'SOLD OUT') : (storeEvent?.status || staticData?.status),
+      gradient: storeEvent?.colorClasses ? storeEvent.colorClasses.replace('border', 'from').replace('hover:from-white', '') + ' to-transparent' : staticData?.gradient || 'from-primary/20 to-transparent',
+      lineup,
+      schedule,
+      faq,
+      gallery: staticData?.gallery || [],
+      ticketsLeft: storeEvent?.ticketsLeft,
+      audioSrc: storeEvent?.audioSrc // preserve
+    }
+  }, [eventId, events])
 
   if (!event) {
     return (
@@ -370,6 +425,9 @@ export function EventDetailPage() {
           EXACT COORDINATES WILL BE TRANSMITTED VIA ENCRYPTED CHANNEL 2 HOURS BEFORE THE EVENT.
         </p>
       </section>
+
+      {/* Reviews */}
+      {event.id && <ReviewSection eventId={event.id} />}
     </main>
   )
 }

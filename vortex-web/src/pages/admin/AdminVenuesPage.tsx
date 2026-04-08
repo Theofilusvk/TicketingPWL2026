@@ -15,7 +15,7 @@ const ZONES: Zone[] = [
     id: 'main', 
     name: 'MAIN FLOOR', 
     capacity: 200, 
-    path: 'M 10 10 L 90 10 L 90 60 L 50 80 L 10 60 Z', // Polygon points (viewBox 0 0 100 100)
+    path: 'M 10 10 L 90 10 L 90 60 L 50 80 L 10 60 Z M 25 15 L 25 40 L 50 50 L 75 40 L 75 15 Z', // Compound path with hole
     tiers: ['PHANTOM', 'SQUIRE']
   },
   { 
@@ -40,8 +40,10 @@ export function AdminVenuesPage() {
   
   const [activeZone, setActiveZone] = useState<Zone | null>(null)
   
-  // Choose "static-pulse" which uses VOID STATION 4
-  const targetEvent = events.find(e => e.id === 'static-pulse')
+  // Dynamic Event Selection
+  const [selectedEventId, setSelectedEventId] = useState<string>(events[0]?.id || '')
+  const targetEvent = events.find(e => e.id === selectedEventId) || events[0]
+  
   const validTickets = ownedTickets.filter(t => t.eventId === targetEvent?.id)
 
   const getZoneStats = (zone: Zone) => {
@@ -57,7 +59,20 @@ export function AdminVenuesPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-4xl font-semibold text-white tracking-tight drop-shadow-md">Venue Matrix</h1>
-          <p className="text-sm font-medium text-white/50 mt-1.5">Interactive capacity mapping for {targetEvent?.venue || 'The Hub'}</p>
+          <p className="text-sm font-medium text-white/50 mt-1.5">Interactive capacity mapping for {targetEvent?.venue || 'Unknown'}</p>
+        </div>
+        <div className="bg-white/[0.03] backdrop-blur-md border border-white/10 rounded-2xl p-1 shadow-inner relative flex items-center min-w-[240px]">
+          <span className="material-symbols-outlined text-white/40 absolute left-3 pointer-events-none">event</span>
+          <select 
+            value={selectedEventId}
+            onChange={(e) => setSelectedEventId(e.target.value)}
+            className="w-full bg-transparent text-white font-semibold tracking-wide text-sm outline-none appearance-none cursor-pointer pl-10 pr-10 py-2 [color-scheme:dark]"
+          >
+            {events.map(e => (
+              <option key={e.id} value={e.id} className="bg-zinc-900 text-white">{e.name}</option>
+            ))}
+          </select>
+          <span className="material-symbols-outlined text-white/40 absolute right-3 pointer-events-none">expand_content</span>
         </div>
       </div>
 
@@ -97,6 +112,7 @@ export function AdminVenuesPage() {
                   <path 
                     d={zone.path} 
                     fill={fillColor}
+                    fillRule="evenodd"
                     stroke={baseColor}
                     strokeWidth={isActive ? "1" : "0.5"}
                     strokeDasharray={isActive ? "none" : "2,1"}

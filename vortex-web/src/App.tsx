@@ -33,6 +33,10 @@ const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage').then(mo
 const AdminDropsPage = lazy(() => import('./pages/admin/AdminDropsPage').then(module => ({ default: module.AdminDropsPage })))
 const AdminNewsPage = lazy(() => import('./pages/admin/AdminNewsPage').then(module => ({ default: module.AdminNewsPage })))
 const AdminAnalyticsPage = lazy(() => import('./pages/admin/AdminAnalyticsPage').then(module => ({ default: module.AdminAnalyticsPage })))
+const AdminNotificationsPage = lazy(() => import('./pages/admin/AdminNotificationsPage').then(module => ({ default: module.AdminNotificationsPage })))
+const AdminAttendeesPage = lazy(() => import('./pages/admin/AdminAttendeesPage').then(module => ({ default: module.AdminAttendeesPage })))
+const AdminRefundsPage = lazy(() => import('./pages/admin/AdminRefundsPage').then(module => ({ default: module.AdminRefundsPage })))
+const AdminReviewsPage = lazy(() => import('./pages/admin/AdminReviewsPage').then(module => ({ default: module.AdminReviewsPage })))
 
 import { AudioProvider } from './lib/audio'
 import { PageLoader } from './components/PageLoader'
@@ -56,6 +60,10 @@ export function App() {
               <Route path="drops" element={<AdminDropsPage />} />
               <Route path="news" element={<AdminNewsPage />} />
               <Route path="analytics" element={<AdminAnalyticsPage />} />
+              <Route path="notifications" element={<AdminNotificationsPage />} />
+              <Route path="attendees" element={<AdminAttendeesPage />} />
+              <Route path="refunds" element={<AdminRefundsPage />} />
+              <Route path="reviews" element={<AdminReviewsPage />} />
             </Route>
 
             <Route element={<AppShell />}>

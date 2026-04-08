@@ -1,5 +1,6 @@
 import { Navigate, Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../lib/auth'
+import { CustomCursor } from '../../components/CustomCursor'
 
 export function AdminLayout() {
   const { user, isAuthenticated, logout } = useAuth()
@@ -15,13 +16,18 @@ export function AdminLayout() {
     { to: '/admin/scanner', icon: 'document_scanner', label: 'Validation' },
     { to: '/admin/venues', icon: 'map', label: 'Venues' },
     { to: '/admin/events', icon: 'stadium', label: 'Events' },
+    { to: '/admin/attendees', icon: 'how_to_reg', label: 'Attendees' },
     { to: '/admin/users', icon: 'group', label: 'Audience' },
     { to: '/admin/drops', icon: 'sell', label: 'Merchandise' },
     { to: '/admin/news', icon: 'campaign', label: 'Broadcasts' },
+    { to: '/admin/notifications', icon: 'notifications_active', label: 'Comms' },
+    { to: '/admin/refunds', icon: 'currency_exchange', label: 'Refunds' },
+    { to: '/admin/reviews', icon: 'rate_review', label: 'Reviews' },
   ]
 
   return (
     <div className="min-h-screen bg-[#050505] text-zinc-100 flex font-sans selection:bg-white/20 transition-colors duration-500 cursor-default">
+      <CustomCursor />
       {/* Admin Sidebar */}
       <aside className="w-64 border-r border-white/[0.08] bg-white/[0.02] backdrop-blur-[40px] p-5 flex-col gap-8 hidden md:flex shrink-0 z-10 shadow-[4px_0_24px_-4px_rgba(0,0,0,0.2)]">
         <Link to="/admin" className="flex items-center gap-3 px-2">

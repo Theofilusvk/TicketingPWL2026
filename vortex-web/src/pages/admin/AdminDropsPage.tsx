@@ -1,18 +1,45 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useStore, type DropData } from '../../lib/store'
 
 export function AdminDropsPage() {
   const { drops, deleteDrop, addDrop } = useStore()
   const [showModal, setShowModal] = useState(false)
   
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  
   const [newDrop, setNewDrop] = useState<Partial<DropData>>({
     title: '',
     price: 5000,
-    image: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&q=80',
+    image: '',
     rarity: 'RARE',
     stock: 100,
     reqTier: 'SQUIRE'
   })
+
+  const handleImageUpload = (file: File) => {
+    if (!file.type.startsWith('image/')) return
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const result = e.target?.result as string
+      setImagePreview(result)
+      setNewDrop(prev => ({ ...prev, image: result }))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleDropEvent = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files[0]
+    if (file) handleImageUpload(file)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,11 +53,12 @@ export function AdminDropsPage() {
     setNewDrop({
       title: '',
       price: 5000,
-      image: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&q=80',
+      image: '',
       rarity: 'RARE',
       stock: 100,
       reqTier: 'SQUIRE'
     })
+    setImagePreview(null)
   }
 
   return (
@@ -164,12 +192,42 @@ export function AdminDropsPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] font-semibold text-white/40 uppercase tracking-widest pl-1">Image URL</label>
-                  <input 
-                    type="url" required 
-                    value={newDrop.image} onChange={e => setNewDrop({...newDrop, image: e.target.value})}
-                    className="w-full bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all duration-300 placeholder:text-white/20 shadow-inner" 
-                  />
+                  <label className="text-[11px] font-semibold text-white/40 uppercase tracking-widest pl-1">Merchandise Image</label>
+                  <div
+                    onDrop={handleDropEvent}
+                    onDragOver={handleDragOver}
+                    onDragLeave={() => setIsDragging(false)}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`relative w-full h-32 rounded-2xl border-2 border-dashed cursor-pointer transition-all duration-300 overflow-hidden ${
+                      isDragging 
+                        ? 'border-indigo-400 bg-indigo-500/10' 
+                        : 'border-white/[0.15] bg-white/[0.03] hover:border-white/30 hover:bg-white/[0.05]'
+                    }`}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => {
+                        const file = e.target.files?.[0]
+                        if (file) handleImageUpload(file)
+                      }}
+                    />
+                    {imagePreview ? (
+                      <div className="absolute inset-0">
+                        <img src={imagePreview} alt="Drop preview" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                          <span className="text-white text-sm font-medium">Click to change</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                        <span className="material-symbols-outlined text-3xl text-white/30">cloud_upload</span>
+                        <p className="text-xs font-medium text-white/40">Drag & drop or click</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex gap-4 pt-6 mt-2">
                   <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-3.5 rounded-2xl border border-white/[0.1] text-sm font-semibold text-white/60 hover:text-white hover:bg-white/[0.03] transition-all duration-300">Cancel</button>
