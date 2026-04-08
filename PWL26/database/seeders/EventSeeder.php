@@ -135,22 +135,7 @@ class EventSeeder extends Seeder
             ],
 
             // Sports
-            [
-                'organizer'   => $createdOrganizers[2],
-                'category'    => $createdCategories['Sports'],
-                'title'       => 'Jakarta City 10K Run 2026',
-                'description' => 'An official road race through the heart of Jakarta. Open to all fitness levels. Finisher medal, race kit, and post-race celebration included for all participants.',
-                'banner_url'  => null,
-                'location'    => 'Monas, Jakarta Pusat',
-                'start_time'  => '2026-05-17 05:00:00',
-                'end_time'    => '2026-05-17 09:00:00',
-                'status'      => 'active',
-                'tickets'     => [
-                    ['name' => '5K Category',  'price' => 150000, 'available_stock' => 1000],
-                    ['name' => '10K Category', 'price' => 200000, 'available_stock' => 2000],
-                    ['name' => 'Fun Run',      'price' => 100000, 'available_stock' => 500],
-                ],
-            ],
+
             [
                 'organizer'   => $createdOrganizers[2],
                 'category'    => $createdCategories['Sports'],
@@ -205,21 +190,7 @@ class EventSeeder extends Seeder
             ],
 
             // Finished events
-            [
-                'organizer'   => $createdOrganizers[2],
-                'category'    => $createdCategories['Sports'],
-                'title'       => 'Bali Half Marathon 2025',
-                'description' => 'A scenic 21km race through the beautiful streets and rice fields of Ubud, Bali. Past edition – results and records available.',
-                'banner_url'  => null,
-                'location'    => 'Ubud, Bali',
-                'start_time'  => '2025-11-02 05:30:00',
-                'end_time'    => '2025-11-02 10:00:00',
-                'status'      => 'finished',
-                'tickets'     => [
-                    ['name' => '10K',      'price' => 250000, 'available_stock' => 0],
-                    ['name' => 'Half Marathon', 'price' => 400000, 'available_stock' => 0],
-                ],
-            ],
+
         ];
 
         foreach ($events as $eventData) {

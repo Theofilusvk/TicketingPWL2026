@@ -218,6 +218,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               id: e.event_id.toString(),
               name: e.title,
               date: e.start_time ? e.start_time.split(' ')[0].replace(/-/g, '_') : 'TBA',
+              category: e.category ? e.category.name : 'Lainnya',
               status: e.status ? e.status.toUpperCase() : 'ACTIVE',
               ticketsLeft: ticketTotalSupply,
               capacity: ticketTotalSupply > 0 ? ticketTotalSupply : 500, // mock capacity
