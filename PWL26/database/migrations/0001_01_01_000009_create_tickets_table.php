@@ -11,10 +11,10 @@ return new class extends Migration
         Schema::create('tickets', function (Blueprint $table) {
             $table->id('ticket_id');
             $table->unsignedBigInteger('order_item_id');
-            $table->string('ticket_code', 100)->unique(); // kode unik per tiket
+            $table->string('unique_code', 100)->unique(); // kode unik per tiket
             $table->string('qr_code', 255)->nullable();   // string konten QR
             $table->string('qr_code_path', 255)->nullable(); // path file gambar QR
-            $table->enum('status', ['active', 'used', 'canceled'])->default('active');
+            $table->enum('status', ['available', 'used', 'cancelled'])->default('available');
             $table->dateTime('checked_in_at')->nullable(); // waktu scan/check-in
             $table->timestamps();
 

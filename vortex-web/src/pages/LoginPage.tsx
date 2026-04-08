@@ -26,7 +26,7 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
     setSuccessMsg(null)
@@ -36,7 +36,7 @@ export function LoginPage() {
         setError('Confirm Security Key must match Security Key.')
         return
       }
-      const res = signup({ username, password })
+      const res = await signup({ username, password })
       if (!res.ok) {
         setError(res.message)
         return
@@ -48,7 +48,7 @@ export function LoginPage() {
       return
     }
 
-    const res = login({ username, password })
+    const res = await login({ username, password })
     if (!res.ok) {
       setError(res.message)
       return
