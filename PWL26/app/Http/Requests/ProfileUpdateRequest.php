@@ -26,6 +26,10 @@ class ProfileUpdateRequest extends FormRequest
                 'max:255',
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
+            // Profile photo: optional file upload, images only, max 2 MB
+            'profile_photo'        => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:2048'],
+            // Flag to explicitly remove the existing photo (sent as a checkbox / hidden field)
+            'remove_profile_photo' => ['nullable', 'boolean'],
         ];
     }
 }
