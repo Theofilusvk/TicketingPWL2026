@@ -72,6 +72,14 @@ class CheckoutController extends Controller
      */
     public function process(Request $request)
     {
+        // Explicit authentication check with detailed error
+        if (!auth()->check()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized: No valid authentication token provided'
+            ], 401);
+        }
+
         $validated = $request->validate([
             'items' => 'required|array|min:1',
             'items.*.event_id' => 'required|exists:events,event_id', // Accepts event_id from mocked frontend

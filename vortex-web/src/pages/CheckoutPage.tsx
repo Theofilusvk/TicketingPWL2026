@@ -68,6 +68,13 @@ export function CheckoutPage() {
         throw new Error('You must be logged in to checkout. Redirecting to login...');
       }
       
+      // Verify user is still authenticated
+      if (!isAuthenticated || !user) {
+        throw new Error('Session expired. Please log in again.');
+      }
+      
+      console.log('Checkout initiated with token length:', token.length, 'User:', user?.displayName);
+      
       if (isTicketCheckout) {
         // Handle ticket checkout with queue
         const itemsGrouped: Record<string, number> = {};
@@ -141,11 +148,15 @@ export function CheckoutPage() {
         } })
       } else if (isMerchandiseCheckout) {
         // Handle merchandise checkout (instant, no queue)
+        console.log('Processing merchandise checkout for', checkoutItems.length, 'items');
+        
         // Send items with title for backend lookup
         const apiItems = checkoutItems.map(item => ({
           title: item.title,
           quantity: 1 // Each cart item is 1 unit
         }));
+
+        console.log('Sending merchandise request with items:', apiItems);
 
         const response = await fetch('/api/merchandise/process', {
           method: 'POST',
@@ -162,7 +173,11 @@ export function CheckoutPage() {
           })
         });
 
+        console.log('Merchandise response status:', response.status);
+        
         const result = await response.json();
+        console.log('Merchandise response:', result);
+        
         if (!response.ok) {
           throw new Error(result.message || `Merchandise checkout failed (${response.status})`);
         }
@@ -178,6 +193,8 @@ export function CheckoutPage() {
           icon: '/vortex-logo.png'
         })
 
+        console.log('Redirecting to success page with order ID:', result.data.order_id);
+        
         navigate('/success', { state: { 
            orderId: result.data.order_id,
            isMerchandise: true,

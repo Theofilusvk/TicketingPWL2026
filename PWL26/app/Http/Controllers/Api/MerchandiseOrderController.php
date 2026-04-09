@@ -82,6 +82,14 @@ class MerchandiseOrderController extends Controller
      */
     public function process(Request $request)
     {
+        // Explicit authentication check with detailed error
+        if (!auth()->check()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized: No valid authentication token provided'
+            ], 401);
+        }
+
         $validated = $request->validate([
             'items' => 'required|array|min:1',
             'items.*.merch_id' => 'nullable|exists:merchandise,merch_id',

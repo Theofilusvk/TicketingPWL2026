@@ -17,6 +17,7 @@ export function AdminLayout() {
     { to: '/admin/events', icon: 'stadium', label: 'Events' },
     { to: '/admin/users', icon: 'group', label: 'Audience' },
     { to: '/admin/drops', icon: 'sell', label: 'Merchandise' },
+    { to: '/admin/notifications', icon: 'notifications', label: 'Notifications' },
     { to: '/admin/news', icon: 'campaign', label: 'Broadcasts' },
   ]
 

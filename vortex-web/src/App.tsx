@@ -32,6 +32,7 @@ const AdminScannerPage = lazy(() => import('./pages/admin/AdminScannerPage').the
 const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage').then(module => ({ default: module.AdminUsersPage })))
 const AdminDropsPage = lazy(() => import('./pages/admin/AdminDropsPage').then(module => ({ default: module.AdminDropsPage })))
 const AdminNewsPage = lazy(() => import('./pages/admin/AdminNewsPage').then(module => ({ default: module.AdminNewsPage })))
+const AdminNotificationPage = lazy(() => import('./pages/admin/AdminNotificationPage').then(module => ({ default: module.AdminNotificationPage })))
 const AdminAnalyticsPage = lazy(() => import('./pages/admin/AdminAnalyticsPage').then(module => ({ default: module.AdminAnalyticsPage })))
 
 import { AudioProvider } from './lib/audio'
@@ -55,6 +56,7 @@ export function App() {
               <Route path="users" element={<AdminUsersPage />} />
               <Route path="drops" element={<AdminDropsPage />} />
               <Route path="news" element={<AdminNewsPage />} />
+              <Route path="notifications" element={<AdminNotificationPage />} />
               <Route path="analytics" element={<AdminAnalyticsPage />} />
             </Route>
 

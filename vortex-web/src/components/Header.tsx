@@ -4,6 +4,7 @@ import { useAuth } from '../lib/auth'
 import { useStore } from '../lib/store'
 import { useAudio } from '../lib/audio'
 import { useTranslation } from '../lib/i18n'
+import { NotificationBar } from './NotificationBar'
 
 function navClassName({ isActive }: { isActive: boolean }) {
   return [
@@ -25,17 +26,12 @@ export function Header() {
 
   const [showMenu, setShowMenu] = useState(false)
   const [showMobileNav, setShowMobileNav] = useState(false)
-  const [showNotif, setShowNotif] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
-  const notifRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setShowMenu(false)
-      }
-      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
-        setShowNotif(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -92,49 +88,7 @@ export function Header() {
                  <p className="font-mono text-primary font-bold leading-none">{credits.toLocaleString()}</p>
               </div>
 
-              <div className="relative" ref={notifRef}>
-                <button
-                  onClick={() => { playClickSound(); setShowNotif(!showNotif) }}
-                  onMouseEnter={playHoverSound}
-                  className="relative text-white hover:text-primary transition-colors flex items-center justify-center p-2"
-                >
-                  <span className="material-symbols-outlined text-2xl">notifications</span>
-                  <span className="absolute top-0 right-0 bg-hot-coral text-white text-[8px] font-bold w-4 h-4 flex items-center justify-center rounded-full pointer-events-none animate-pulse">
-                    3
-                  </span>
-                </button>
-
-                {showNotif && (
-                  <div className="absolute right-0 top-full mt-2 w-80 bg-zinc-950 border border-primary/30 shadow-[0_0_30px_rgba(203,255,0,0.08)] z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="px-4 py-3 border-b border-primary/20 flex justify-between items-center">
-                      <span className="font-display text-sm text-primary">NOTIFICATIONS</span>
-                      <span className="font-accent text-[8px] text-zinc-500 uppercase tracking-widest">3 NEW</span>
-                    </div>
-                    <div className="max-h-80 overflow-y-auto">
-                      {[
-                        { icon: 'local_fire_department', color: 'text-hot-coral', time: '2 MIN AGO', msg: 'Tiket NEON CHAOS 2025 hampir habis!', highlight: true },
-                        { icon: 'stars', color: 'text-amber-400', time: '1 HOUR AGO', msg: 'RANK UPGRADE ke tier KNIGHT!', highlight: true },
-                        { icon: 'shopping_bag', color: 'text-primary', time: '3 HOURS AGO', msg: 'VORTEX_HOODIE V2 tersedia di Drops.', highlight: true },
-                      ].map((n, i) => (
-                        <div key={i} className="px-4 py-3 border-b border-zinc-800/50 hover:bg-primary/5 transition-colors cursor-pointer flex items-start gap-3">
-                          <span className={`material-symbols-outlined text-base mt-0.5 ${n.color}`}>{n.icon}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-accent text-[9px] text-white uppercase tracking-widest leading-relaxed">{n.msg}</p>
-                            <p className="font-accent text-[7px] text-zinc-600 uppercase tracking-widest mt-1">{n.time}</p>
-                          </div>
-                          {n.highlight && <span className="size-1.5 bg-hot-coral rounded-full shrink-0 mt-1.5" />}
-                        </div>
-                      ))}
-                    </div>
-                    <button
-                      onClick={() => { setShowNotif(false); navigate('/settings', { state: { tab: 'NOTIFICATIONS' } }) }}
-                      className="w-full px-4 py-2.5 font-accent text-[8px] text-primary uppercase tracking-widest hover:bg-primary/10 transition-colors text-center"
-                    >
-                      VIEW ALL NOTIFICATIONS →
-                    </button>
-                  </div>
-                )}
-              </div>
+              <NotificationBar />
 
               <Link
                 to="/cart"
