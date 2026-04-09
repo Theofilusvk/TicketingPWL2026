@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useStore, type Ticket } from '../lib/store'
+import { useAuth } from '../lib/auth'
 import { LiveQueue } from '../components/LiveQueue'
 import { useNotification } from '../lib/useNotification'
 
@@ -10,6 +11,7 @@ export function CheckoutPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const { cart, checkout, events } = useStore()
+  const { user, isAuthenticated } = useAuth()
   const { requestPermission, scheduleNotification, permission } = useNotification()
   
   const [isProcessing, setIsProcessing] = useState(false)
@@ -19,6 +21,17 @@ export function CheckoutPage() {
   
   const selectedIds = location.state?.selectedItems || []
   const checkoutItems = cart.filter(item => selectedIds.includes(item.id))
+  
+  // Determine item types
+  const isTicketCheckout = checkoutItems.every(item => item.ticketId && item.eventId)
+  const isMerchandiseCheckout = checkoutItems.every(item => item.image && !item.ticketId)
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login')
+    }
+  }, [isAuthenticated, navigate])
 
   useEffect(() => {
     if (!isProcessing && !isSuccess && checkoutItems.length === 0) {
@@ -33,86 +46,150 @@ export function CheckoutPage() {
     }
   }, [permission, requestPermission])
 
+  // For merchandise, skip queue immediately
+  useEffect(() => {
+    if (isMerchandiseCheckout) {
+      setQueuePassed(true)
+    }
+  }, [isMerchandiseCheckout])
+
   const subtotal = checkoutItems.reduce((acc, item) => acc + item.price, 0)
-  const serviceFee = checkoutItems.length > 0 ? (checkoutItems.some(i => i.ticketId) ? 12.5 : 5.0) : 0
+  const serviceFee = checkoutItems.length > 0 ? (isTicketCheckout ? 12.5 : 5.0) : 0
   const tax = subtotal * 0.08
   const total = subtotal + serviceFee + tax
 
   const handleExecutePayment = async () => {
-    // Collect event mapped
-    const itemsGrouped: Record<string, number> = {};
-    checkoutItems.forEach(item => {
-      if(item.ticketId && item.eventId) { // Make sure ticket exists
-           const key = item.eventId.toString();
-           itemsGrouped[key] = (itemsGrouped[key] || 0) + 1;
-      }
-    });
-
-    const apiItems = Object.keys(itemsGrouped).map(eventId => ({
-      event_id: parseInt(eventId),
-      quantity: itemsGrouped[eventId]
-    }));
-
     setIsProcessing(true);
 
     try {
+      // Get token from localStorage with proper validation
       const token = localStorage.getItem('vortex.auth.token');
-      const response = await fetch('http://127.0.0.1:8000/api/checkout/process', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          items: apiItems,
-          payment_method: activeMethod,
-          is_merch: false
-        })
-      });
-
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.message || 'Checkout failed');
+      if (!token) {
+        throw new Error('You must be logged in to checkout. Redirecting to login...');
       }
-
-      // Generate virtual tickets for frontend visualization
-      const tickets: Ticket[] = checkoutItems
-        .filter(item => item.ticketId)
-        .map((item, idx) => {
-          const event = events.find(e => e.id === item.eventId)
-          return {
-            id: result.data.tickets[idx] || `ticket_${Math.random().toString(16).slice(2)}`,
-            eventId: item.eventId || 'unknown',
-            eventName: event?.name || item.title,
-            venue: event?.venue || 'UNDISCLOSED WAREHOUSE',
-            date: event?.date || '2025-02-14',
-            tier: item.phase || 'GENERAL',
-            gate: 'NORTH_02',
-            orderId: `ORD-${result.data.order_id}`,
-            purchaseDate: new Date().toISOString(),
-            assignedName: item.assignedName || 'UNASSIGNED',
-            ticketId: item.ticketId!,
+      
+      if (isTicketCheckout) {
+        // Handle ticket checkout with queue
+        const itemsGrouped: Record<string, number> = {};
+        checkoutItems.forEach(item => {
+          if(item.ticketId && item.eventId) {
+            const key = item.eventId.toString();
+            itemsGrouped[key] = (itemsGrouped[key] || 0) + 1;
           }
-        })
-      
-      const earnedCredits = result.data.earned_credits || 0;
-      
-      setIsSuccess(true);
-      checkout(tickets, earnedCredits, checkoutItems.map(i => i.id))
-      
-      // Schedule a push notification as a delayed event reminder/confirmation
-      scheduleNotification('🎟️ EVENT SECURED', 2000, {
-        body: `Your ticket for ${tickets[0]?.eventName || 'VORTEX EVENT'} is confirmed. Access your QR code in My Tickets.`,
-        icon: '/vortex-logo.png'
-      })
+        });
 
-      navigate('/success', { state: { 
-         orderId: result.data.order_id,
-         tickets: tickets,
-         total: total
-      } })
+        const apiItems = Object.keys(itemsGrouped).map(eventId => ({
+          event_id: parseInt(eventId),
+          quantity: itemsGrouped[eventId]
+        }));
+
+        const response = await fetch('/api/checkout/process', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            items: apiItems,
+            payment_method: activeMethod,
+            is_merch: false
+          })
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.message || `Checkout failed (${response.status})`);
+        }
+
+        // Generate virtual tickets for frontend visualization
+        const tickets: Ticket[] = checkoutItems
+          .filter(item => item.ticketId)
+          .map((item, idx) => {
+            const event = events.find(e => e.id === item.eventId)
+            return {
+              id: result.data.tickets[idx] || `ticket_${Math.random().toString(16).slice(2)}`,
+              eventId: item.eventId || 'unknown',
+              eventName: event?.name || item.title,
+              venue: event?.venue || 'UNDISCLOSED WAREHOUSE',
+              date: event?.date || '2025-02-14',
+              tier: item.phase || 'GENERAL',
+              gate: 'NORTH_02',
+              orderId: `ORD-${result.data.order_id}`,
+              purchaseDate: new Date().toISOString(),
+              assignedName: item.assignedName || 'UNASSIGNED',
+              ticketId: item.ticketId!,
+            }
+          })
+        
+        const earnedCredits = result.data.earned_credits || 0;
+        
+        setIsSuccess(true);
+        checkout([], earnedCredits, checkoutItems.map(i => i.id))
+        
+        // Schedule a push notification
+        scheduleNotification('🎟️ EVENT SECURED', 2000, {
+          body: `Your ticket for ${tickets[0]?.eventName || 'VORTEX EVENT'} is confirmed. Access your QR code in My Tickets.`,
+          icon: '/vortex-logo.png'
+        })
+
+        navigate('/success', { state: { 
+           orderId: result.data.order_id,
+           tickets: tickets,
+           total: total
+        } })
+      } else if (isMerchandiseCheckout) {
+        // Handle merchandise checkout (instant, no queue)
+        // Send items with title for backend lookup
+        const apiItems = checkoutItems.map(item => ({
+          title: item.title,
+          quantity: 1 // Each cart item is 1 unit
+        }));
+
+        const response = await fetch('/api/merchandise/process', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            items: apiItems,
+            payment_method: activeMethod,
+            shipping_address: location.state?.shippingAddress || ''
+          })
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.message || `Merchandise checkout failed (${response.status})`);
+        }
+
+        const earnedCredits = result.data.earned_credits || 0;
+        
+        setIsSuccess(true);
+        checkout([], earnedCredits, checkoutItems.map(i => i.id))
+        
+        // Schedule notification for merchandise
+        scheduleNotification('📦 MERCHANDISE SECURED', 2000, {
+          body: `Your merchandise order has been confirmed! Track your shipment in My Orders.`,
+          icon: '/vortex-logo.png'
+        })
+
+        navigate('/success', { state: { 
+           orderId: result.data.order_id,
+           isMerchandise: true,
+           items: checkoutItems,
+           total: total
+        } })
+      }
     } catch (err: any) {
+      console.error('Checkout error:', err);
+      if (err.message.includes('logged in')) {
+        setTimeout(() => navigate('/login'), 1500);
+      }
       alert("Error processing checkout: " + err.message);
     } finally {
       setIsProcessing(false);
@@ -129,7 +206,7 @@ export function CheckoutPage() {
 
   return (
     <>
-    {!queuePassed && (
+    {isTicketCheckout && !queuePassed && (
       <LiveQueue
         eventName={checkoutItems[0]?.title || 'VORTEX_EVENT'}
         onComplete={() => setQueuePassed(true)}
@@ -138,10 +215,12 @@ export function CheckoutPage() {
     <main className={`max-w-[1440px] mx-auto px-4 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-2 gap-16 mb-20 ${!queuePassed ? 'opacity-0 pointer-events-none' : 'animate-in fade-in duration-500'}`}>
       <section className="reveal flex flex-col gap-6">
         <div>
-          <h1 className="font-display text-5xl md:text-7xl leading-none text-primary">ORDER_SUMMARY</h1>
+          <h1 className="font-display text-5xl md:text-7xl leading-none text-primary">
+            {isTicketCheckout ? 'ORDER_SUMMARY' : 'MERCHANDISE_ORDER'}
+          </h1>
           <p className="font-accent text-[8px] uppercase tracking-widest text-primary mt-4 flex items-center gap-2">
             <span className="size-2 bg-primary rounded-full animate-pulse shadow-[0_0_8px_#CBFF00]" />
-            PROTOCOL_STATUS: VERIFIED // ENCRYPTION: AES-256-GCM
+            PROTOCOL_STATUS: {isMerchandiseCheckout ? 'INSTANT_CHECKOUT // ENCRYPTED' : 'VERIFIED // ENCRYPTION: AES-256-GCM'}
           </p>
         </div>
 
@@ -152,43 +231,73 @@ export function CheckoutPage() {
             TIMESTAMP: 2025.04.12_04:00
           </div>
 
-          <div className="flex gap-6 items-start mt-6 mb-12 border-b border-dashed border-zinc-600 pb-12">
-            <div className="w-[120px] h-[160px] border border-primary shrink-0 relative overflow-hidden bg-zinc-900 group">
-              <img
-                alt="Neon Chaos Event Poster"
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 opacity-80"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuD5mp-WOImDCtb73Ca1NFmIt1welAuuSQXwMCZ_dey2ftzBzn_Ql_y_Oi7kwhGIox5c2aPxepI50EZ92Cq6EtVhi-JRdEFB-_jlOeVIRMa0XhkcEcFGdW6h-fblPg_SRktbcTRJapXyULn3NKrD__6w88TNPyYGJveVEVjSQzIZF0sofs7KTy1KP8N401cBNYuumlVlM12MKGguLXmi-rqI-d5AQU6pYPk72mSHR-hbLG2iEls2y_VkxqVT4RRer1ZJCGykkrgL3y8"
-              />
+          {isTicketCheckout ? (
+            <div className="flex gap-6 items-start mt-6 mb-12 border-b border-dashed border-zinc-600 pb-12">
+              <div className="w-[120px] h-[160px] border border-primary shrink-0 relative overflow-hidden bg-zinc-900 group">
+                <img
+                  alt="Neon Chaos Event Poster"
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 opacity-80"
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuD5mp-WOImDCtb73Ca1NFmIt1welAuuSQXwMCZ_dey2ftzBzn_Ql_y_Oi7kwhGIox5c2aPxepI50EZ92Cq6EtVhi-JRdEFB-_jlOeVIRMa0XhkcEcFGdW6h-fblPg_SRktbcTRJapXyULn3NKrD__6w88TNPyYGJveVEVjSQzIZF0sofs7KTy1KP8N401cBNYuumlVlM12MKGguLXmi-rqI-d5AQU6pYPk72mSHR-hbLG2iEls2y_VkxqVT4RRer1ZJCGykkrgL3y8"
+                />
+              </div>
+              <div className="flex flex-col mt-2">
+                <h2 className="font-display text-3xl md:text-4xl text-white leading-none">NEON CHAOS <span className="text-zinc-400">2025</span></h2>
+                <p className="font-accent text-[8px] text-hot-coral uppercase tracking-widest mt-2 mb-1">SYSTEM_LOCATION: UNDISCLOSED_WAREHOUSE</p>
+                <p className="font-accent text-[8px] text-zinc-400 tracking-widest uppercase">ADMISSION: DIGITAL_TICKET_STUB</p>
+              </div>
             </div>
-            <div className="flex flex-col mt-2">
-              <h2 className="font-display text-3xl md:text-4xl text-white leading-none">NEON CHAOS <span className="text-zinc-400">2025</span></h2>
-              <p className="font-accent text-[8px] text-hot-coral uppercase tracking-widest mt-2 mb-1">SYSTEM_LOCATION: UNDISCLOSED_WAREHOUSE</p>
-              <p className="font-accent text-[8px] text-zinc-400 tracking-widest uppercase">ADMISSION: DIGITAL_TICKET_STUB</p>
+          ) : (
+            <div className="mb-12 border-b border-dashed border-zinc-600 pb-12">
+              <p className="font-accent text-[8px] text-primary uppercase tracking-widest mb-4">MERCHANDISE_SHIPMENT</p>
+              <p className="font-display text-3xl md:text-4xl text-white leading-none">{checkoutItems.length} ITEM(S) ACQUIRED</p>
             </div>
-          </div>
+          )}
 
           <div className="font-accent text-[10px] mb-8 space-y-4 tracking-widest uppercase border-b border-dashed border-zinc-600 pb-8">
             {checkoutItems.length > 0 ? checkoutItems.map((item: any, idx: number) => (
               <div key={item.id} className="flex flex-col gap-2 border border-zinc-800 p-4 bg-black/60 relative">
                 <div className="absolute top-0 right-0 bg-primary text-black font-bold px-2 py-0.5 text-[8px]">
-                  TICKET {String(idx + 1).padStart(2, '0')}
+                  {isTicketCheckout ? `TICKET ${String(idx + 1).padStart(2, '0')}` : `ITEM ${String(idx + 1).padStart(2, '0')}`}
                 </div>
-                <div className="flex justify-between pt-2">
-                  <span className="text-zinc-500">TICKET_ID</span>
-                  <span className="text-white">{item.ticketId}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-zinc-500">ITEM_DESC</span>
-                  <span className="text-white">{item.title}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-zinc-500">TIER_PHASE</span>
-                  <span className="text-white">{item.phase}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-zinc-500">ASSIGNED_TO</span>
-                  <span className="text-primary font-bold">{item.assignedName || "UNASSIGNED"}</span>
-                </div>
+                {isTicketCheckout ? (
+                  <>
+                    <div className="flex justify-between pt-2">
+                      <span className="text-zinc-500">TICKET_ID</span>
+                      <span className="text-white">{item.ticketId}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">ITEM_DESC</span>
+                      <span className="text-white">{item.title}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">TIER_PHASE</span>
+                      <span className="text-white">{item.phase}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">ASSIGNED_TO</span>
+                      <span className="text-primary font-bold">{item.assignedName || "UNASSIGNED"}</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between pt-2">
+                      <span className="text-zinc-500">PRODUCT_NAME</span>
+                      <span className="text-white">{item.title}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">SKU</span>
+                      <span className="text-white">{item.id}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">UNIT_PRICE</span>
+                      <span className="text-white">${item.price.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">QUANTITY</span>
+                      <span className="text-primary font-bold">1x</span>
+                    </div>
+                  </>
+                )}
               </div>
             )) : (
                <div className="p-4 border border-zinc-800 text-zinc-500 text-center">NO_ITEMS_FOUND</div>

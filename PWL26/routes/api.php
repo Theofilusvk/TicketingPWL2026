@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\Api\CheckoutController;
+use App\Http\Controllers\Api\MerchandiseOrderController;
 
 // Public Auth
 Route::post('auth/register', [AuthController::class, 'register']);
@@ -19,6 +20,9 @@ Route::apiResource('categories', CategoryController::class)->only(['index', 'sho
 // Checkout Calculation (Publicly accessible for cart simulation)
 Route::post('checkout/calculate', [CheckoutController::class, 'calculate']);
 
+// Merchandise Calculation (Publicly accessible for cart simulation)
+Route::post('merchandise/calculate', [MerchandiseOrderController::class, 'calculate']);
+
 
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -26,6 +30,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Auth State Management
     Route::get('auth/me', [AuthController::class, 'me']);
     Route::post('auth/logout', [AuthController::class, 'logout']);
+
+    // Merchandise processing (instant, no queue)
+    Route::post('merchandise/process', [MerchandiseOrderController::class, 'process']);
 
     // Checkout processing
     Route::post('checkout/process', [CheckoutController::class, 'process']);

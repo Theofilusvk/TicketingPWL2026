@@ -65,29 +65,27 @@ class DatabaseSeeder extends Seeder
         $techPeakImg = 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80';
 
         DB::table('events')->insert([
-            // Workbench
-            ['event_id' => 1, 'organizer_id' => 1, 'category_id' => 1, 'title' => 'Konser', 'description' => 'b1.jpg', 'banner_url' => $musicImg, 'location' => 'Jakarta', 'start_time' => '2026-04-10 18:00:00', 'end_time' => '2026-04-10 22:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
-            ['event_id' => 2, 'organizer_id' => 2, 'category_id' => 2, 'title' => 'Expo', 'description' => 'b2.jpg', 'banner_url' => $techImg, 'location' => 'Bandung', 'start_time' => '2026-05-01 09:00:00', 'end_time' => '2026-05-01 17:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
-            ['event_id' => 3, 'organizer_id' => 3, 'category_id' => 3, 'title' => 'Bola', 'description' => 'b3.jpg', 'banner_url' => $sportsImg, 'location' => 'Surabaya', 'start_time' => '2026-06-15 15:00:00', 'end_time' => '2026-06-15 18:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
-            ['event_id' => 4, 'organizer_id' => 4, 'category_id' => 4, 'title' => 'IT', 'description' => 'b4.jpg', 'banner_url' => $techImg, 'location' => 'Jogja', 'start_time' => '2026-07-20 10:00:00', 'end_time' => '2026-07-20 14:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
-            ['event_id' => 5, 'organizer_id' => 5, 'category_id' => 5, 'title' => 'Seni', 'description' => 'b5.jpg', 'banner_url' => $artImg, 'location' => 'Bali', 'start_time' => '2026-08-05 12:00:00', 'end_time' => '2026-08-05 20:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
-            // Premium
-            ['event_id' => 6, 'organizer_id' => 4, 'category_id' => 1, 'title' => 'Soundwave Music Festival', 'description' => 'Biggest music festival', 'banner_url' => $musicImg, 'location' => 'Senayan', 'start_time' => '2026-06-14 14:00:00', 'end_time' => '2026-06-14 23:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
-            ['event_id' => 7, 'organizer_id' => 4, 'category_id' => 1, 'title' => 'Acoustic Night: Unplugged Sessions', 'description' => 'An intimate evening of acoustic performances.', 'banner_url' => $musicImg, 'location' => 'Roemah Kuliner', 'start_time' => '2026-07-05 19:00:00', 'end_time' => '2026-07-05 22:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
-            ['event_id' => 8, 'organizer_id' => 5, 'category_id' => 2, 'title' => 'TechPeak Summit 2026', 'description' => 'Indonesia premier technology conference.', 'banner_url' => $techPeakImg, 'location' => 'JCC', 'start_time' => '2026-08-20 08:00:00', 'end_time' => '2026-08-21 18:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
-            ['event_id' => 9, 'organizer_id' => 5, 'category_id' => 2, 'title' => 'Hackathon 48H: Build for Impact', 'description' => 'A 48-hour hackathon challenging developers.', 'banner_url' => $techImg, 'location' => 'Hub Space', 'start_time' => '2026-09-12 08:00:00', 'end_time' => '2026-09-14 08:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
-            ['event_id' => 10, 'organizer_id' => 6, 'category_id' => 3, 'title' => 'National Badminton Open', 'description' => 'A national-level badminton tournament.', 'banner_url' => $sportsImg, 'location' => 'Istora Senayan', 'start_time' => '2026-10-03 08:00:00', 'end_time' => '2026-10-05 20:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
-            ['event_id' => 11, 'organizer_id' => 5, 'category_id' => 6, 'title' => 'Startup Pitch Night', 'description' => 'Watch emerging startups pitch their ideas.', 'banner_url' => $businessImg, 'location' => 'SCBD', 'start_time' => '2026-06-25 17:00:00', 'end_time' => '2026-06-25 21:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
-            ['event_id' => 12, 'organizer_id' => 4, 'category_id' => 5, 'title' => 'Nusantara Art & Craft Expo', 'description' => 'A celebration of Indonesian art and crafts.', 'banner_url' => $artImg, 'location' => 'Museum Nasional', 'start_time' => '2026-11-08 09:00:00', 'end_time' => '2026-11-10 17:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
+            // Core Events - Kept
+            ['event_id' => 1, 'organizer_id' => 1, 'category_id' => 1, 'title' => 'Konser', 'description' => 'DYNAMIC EVENT POWERED BY LARAVEL DB. THE MOST VISCERAL UNDERGROUND AUDIO-VISUAL EXPERIENCE ENGINEERED FOR THE DIGITAL NATIVE. 12 HOURS OF NON-STOP TECHNO, INDUSTRIAL BASS, AND IMMERSIVE LASER MAPPING ACROSS 3 STAGES. HOLD VER 3.0 JACKET REQUIRED FOR ENTRY.', 'banner_url' => $musicImg, 'location' => 'Jakarta', 'start_time' => '2026-04-10 18:00:00', 'end_time' => '2026-04-10 22:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
+            
+            // Premium Events
+            ['event_id' => 6, 'organizer_id' => 4, 'category_id' => 1, 'title' => 'Soundwave Music Festival', 'description' => 'BIGGEST MUSIC FESTIVAL IN JAKARTA. A CELEBRATION OF UNDERGROUND AND MAINSTREAM ELECTRONIC MUSIC. FEATURING INTERNATIONAL DJ HEADLINERS, LIVE PERFORMANCES, AND EXPERIMENTAL SOUND INSTALLATIONS. DANCE UNTIL DAWN AT SENAYAN PARK WITH THOUSANDS OF PHANTOMS.', 'banner_url' => $musicImg, 'location' => 'Senayan', 'start_time' => '2026-06-14 14:00:00', 'end_time' => '2026-06-14 23:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
+            
+            ['event_id' => 7, 'organizer_id' => 4, 'category_id' => 1, 'title' => 'Acoustic Night: Unplugged Sessions', 'description' => 'AN INTIMATE EVENING OF ACOUSTIC PERFORMANCES IN MINIMAL LIGHT CONDITIONS. STRIPPED-DOWN ARRANGEMENTS AND RAW VOCAL POWER. FEATURING UNDERGROUND ARTISTS PERFORMING IN CLOSE PROXIMITY TO AUDIENCE. CAPACITY LIMITED TO 150. AMBIENT SOUNDS AND SOUL MUSIC IN A VINTAGE WAREHOUSE SETTING.', 'banner_url' => $acousticImg, 'location' => 'Roemah Kuliner', 'start_time' => '2026-07-05 19:00:00', 'end_time' => '2026-07-05 22:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
+            
+            ['event_id' => 8, 'organizer_id' => 5, 'category_id' => 2, 'title' => 'TechPeak Summit 2026', 'description' => 'INDONESIA PREMIER TECHNOLOGY CONFERENCE. TWO DAYS OF KEYNOTES, WORKSHOPS, AND NETWORKING WITH LEADING TECH ENTREPRENEURS AND INNOVATORS. EXPLORE EMERGING TECHNOLOGIES: AI, BLOCKCHAIN, WEB3, AND DIGITAL TRANSFORMATION. FEATURING PANEL DISCUSSIONS AND HANDS-ON CODING SESSIONS.', 'banner_url' => $techPeakImg, 'location' => 'JCC', 'start_time' => '2026-08-20 08:00:00', 'end_time' => '2026-08-21 18:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
+            
+            ['event_id' => 12, 'organizer_id' => 4, 'category_id' => 5, 'title' => 'Nusantara Art & Craft Expo', 'description' => 'A CELEBRATION OF INDONESIAN ART AND CRAFTS. THREE-DAY EXHIBITION SHOWCASING TRADITIONAL AND CONTEMPORARY WORKS FROM LOCAL ARTISANS. FEATURING WOOD CARVINGS, BATIK, TEXTILES, CERAMICS, AND CONTEMPORARY INSTALLATIONS. LIVE DEMONSTRATIONS AND ARTIST MEET-AND-GREETS THROUGHOUT THE EXPO.', 'banner_url' => $artImg, 'location' => 'Museum Nasional', 'start_time' => '2026-11-08 09:00:00', 'end_time' => '2026-11-10 17:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
         ]);
 
         // ── 4. TICKET TYPES ─────────────────────────────────────────────────
         $this->command->info('Seeding Ticket Types...');
         DB::table('ticket_types')->insert([
+            // Event 1 (Konser)
             ['ticket_type_id' => 1, 'event_id' => 1, 'name' => 'VVIP', 'price' => 500000, 'available_stock' => 50],
-            ['ticket_type_id' => 2, 'event_id' => 2, 'name' => 'General', 'price' => 200000, 'available_stock' => 200],
-            ['ticket_type_id' => 3, 'event_id' => 3, 'name' => 'VIP', 'price' => 300000, 'available_stock' => 100],
-            // Event 6
+            ['ticket_type_id' => 2, 'event_id' => 1, 'name' => 'VIP', 'price' => 350000, 'available_stock' => 150],
+            ['ticket_type_id' => 3, 'event_id' => 1, 'name' => 'General', 'price' => 150000, 'available_stock' => 1000],
+            // Event 6 (Soundwave Music Festival)
             ['ticket_type_id' => 4, 'event_id' => 6, 'name' => 'General Admission', 'price' => 250000, 'available_stock' => 2000],
             ['ticket_type_id' => 5, 'event_id' => 6, 'name' => 'VIP', 'price' => 750000, 'available_stock' => 500],
             // Event 7 (Acoustic Night)
@@ -96,34 +94,29 @@ class DatabaseSeeder extends Seeder
             // Event 8 (TechPeak)
             ['ticket_type_id' => 8, 'event_id' => 8, 'name' => 'General Pass', 'price' => 500000, 'available_stock' => 1500],
             ['ticket_type_id' => 9, 'event_id' => 8, 'name' => 'Professional Pass', 'price' => 1200000, 'available_stock' => 300],
-            // Event 9 (Hackathon)
-            ['ticket_type_id' => 10, 'event_id' => 9, 'name' => 'Participant', 'price' => 0, 'available_stock' => 100],
-            // Event 10 (Badminton)
-            ['ticket_type_id' => 11, 'event_id' => 10, 'name' => 'Day Pass', 'price' => 50000, 'available_stock' => 3000],
-            // Event 11 (Startup)
-            ['ticket_type_id' => 12, 'event_id' => 11, 'name' => 'Audience Seat', 'price' => 0, 'available_stock' => 200],
-            // Event 12 (Nusantara Art)
-            ['ticket_type_id' => 13, 'event_id' => 12, 'name' => 'General Entry', 'price' => 25000, 'available_stock' => 5000],
+            // Event 12 (Nusantara Art & Craft Expo)
+            ['ticket_type_id' => 10, 'event_id' => 12, 'name' => 'General Entry', 'price' => 25000, 'available_stock' => 5000],
+            ['ticket_type_id' => 11, 'event_id' => 12, 'name' => 'Premium Entry', 'price' => 75000, 'available_stock' => 500],
         ]);
 
         // ── 5. WAITING LIST ─────────────────────────────────────────────────
         $this->command->info('Seeding Waiting List...');
         DB::table('waiting_list')->insert([
-            ['list_id' => 1, 'event_id' => 4, 'user_id' => 1, 'ticket_type_id' => 1, 'status' => 'waiting', 'created_at' => now()],
-            ['list_id' => 2, 'event_id' => 5, 'user_id' => 3, 'ticket_type_id' => 1, 'status' => 'waiting', 'created_at' => now()],
-            ['list_id' => 3, 'event_id' => 4, 'user_id' => 2, 'ticket_type_id' => 1, 'status' => 'notified', 'created_at' => now()],
-            ['list_id' => 4, 'event_id' => 5, 'user_id' => 5, 'ticket_type_id' => 1, 'status' => 'waiting', 'created_at' => now()],
-            ['list_id' => 5, 'event_id' => 4, 'user_id' => 4, 'ticket_type_id' => 1, 'status' => 'notified', 'created_at' => now()],
+            ['list_id' => 1, 'event_id' => 1, 'user_id' => 1, 'ticket_type_id' => 1, 'status' => 'waiting', 'created_at' => now()],
+            ['list_id' => 2, 'event_id' => 6, 'user_id' => 3, 'ticket_type_id' => 4, 'status' => 'waiting', 'created_at' => now()],
+            ['list_id' => 3, 'event_id' => 7, 'user_id' => 2, 'ticket_type_id' => 6, 'status' => 'notified', 'created_at' => now()],
+            ['list_id' => 4, 'event_id' => 8, 'user_id' => 5, 'ticket_type_id' => 8, 'status' => 'waiting', 'created_at' => now()],
+            ['list_id' => 5, 'event_id' => 12, 'user_id' => 4, 'ticket_type_id' => 10, 'status' => 'notified', 'created_at' => now()],
         ]);
 
         // ── 6. ORDERS ───────────────────────────────────────────────────────
         $this->command->info('Seeding Orders...');
         DB::table('orders')->insert([
-            ['order_id' => 1, 'user_id' => 1, 'event_id' => 2, 'status' => 'paid', 'payment_method' => 'QRIS', 'payment_reference' => 'REF001', 'total_price' => 500000, 'created_at' => now(), 'updated_at' => now()],
-            ['order_id' => 2, 'user_id' => 2, 'event_id' => 4, 'status' => 'pending', 'payment_method' => 'Transfer', 'payment_reference' => 'REF002', 'total_price' => 200000, 'created_at' => now(), 'updated_at' => now()],
-            ['order_id' => 3, 'user_id' => 3, 'event_id' => 3, 'status' => 'paid', 'payment_method' => 'Ewallet', 'payment_reference' => 'REF003', 'total_price' => 100000, 'created_at' => now(), 'updated_at' => now()],
-            ['order_id' => 4, 'user_id' => 4, 'event_id' => 1, 'status' => 'failed', 'payment_method' => 'Transfer', 'payment_reference' => 'REF004', 'total_price' => 300000, 'created_at' => now(), 'updated_at' => now()],
-            ['order_id' => 5, 'user_id' => 5, 'event_id' => 5, 'status' => 'paid', 'payment_method' => 'QRIS', 'payment_reference' => 'REF005', 'total_price' => 50000, 'created_at' => now(), 'updated_at' => now()],
+            ['order_id' => 1, 'user_id' => 1, 'event_id' => 1, 'status' => 'paid', 'payment_method' => 'QRIS', 'payment_reference' => 'REF001', 'total_price' => 500000, 'created_at' => now(), 'updated_at' => now()],
+            ['order_id' => 2, 'user_id' => 2, 'event_id' => 6, 'status' => 'pending', 'payment_method' => 'Transfer', 'payment_reference' => 'REF002', 'total_price' => 250000, 'created_at' => now(), 'updated_at' => now()],
+            ['order_id' => 3, 'user_id' => 3, 'event_id' => 7, 'status' => 'paid', 'payment_method' => 'Ewallet', 'payment_reference' => 'REF003', 'total_price' => 100000, 'created_at' => now(), 'updated_at' => now()],
+            ['order_id' => 4, 'user_id' => 4, 'event_id' => 8, 'status' => 'failed', 'payment_method' => 'Transfer', 'payment_reference' => 'REF004', 'total_price' => 500000, 'created_at' => now(), 'updated_at' => now()],
+            ['order_id' => 5, 'user_id' => 5, 'event_id' => 12, 'status' => 'paid', 'payment_method' => 'QRIS', 'payment_reference' => 'REF005', 'total_price' => 25000, 'created_at' => now(), 'updated_at' => now()],
         ]);
 
         // ── 7. ORDER ITEMS ──────────────────────────────────────────────────
@@ -131,10 +124,10 @@ class DatabaseSeeder extends Seeder
         // Note: quantity NULL disingkirkan jadi 1, dan butuh unit_price dari schema migrasi.
         DB::table('order_items')->insert([
             ['order_item_id' => 1, 'order_id' => 1, 'ticket_type_id' => 1, 'quantity' => 1, 'unit_price' => 500000],
-            ['order_item_id' => 2, 'order_id' => 2, 'ticket_type_id' => 2, 'quantity' => 1, 'unit_price' => 200000],
-            ['order_item_id' => 3, 'order_id' => 3, 'ticket_type_id' => 3, 'quantity' => 1, 'unit_price' => 100000],
-            ['order_item_id' => 4, 'order_id' => 4, 'ticket_type_id' => 1, 'quantity' => 1, 'unit_price' => 500000],
-            ['order_item_id' => 5, 'order_id' => 5, 'ticket_type_id' => 3, 'quantity' => 1, 'unit_price' => 50000],
+            ['order_item_id' => 2, 'order_id' => 2, 'ticket_type_id' => 4, 'quantity' => 1, 'unit_price' => 250000],
+            ['order_item_id' => 3, 'order_id' => 3, 'ticket_type_id' => 6, 'quantity' => 1, 'unit_price' => 100000],
+            ['order_item_id' => 4, 'order_id' => 4, 'ticket_type_id' => 8, 'quantity' => 1, 'unit_price' => 500000],
+            ['order_item_id' => 5, 'order_id' => 5, 'ticket_type_id' => 10, 'quantity' => 1, 'unit_price' => 25000],
         ]);
 
         // ── 8. TICKETS ──────────────────────────────────────────────────────
@@ -161,11 +154,11 @@ class DatabaseSeeder extends Seeder
         // ── 10. REPORTS ─────────────────────────────────────────────────────
         $this->command->info('Seeding Reports...');
         DB::table('reports')->insert([
-            ['report_id' => 1, 'event_id' => 2, 'generated_by' => 1, 'file_type' => 'pdf', 'file_path' => 'r1.pdf', 'title' => 'Report', 'created_at' => now()],
-            ['report_id' => 2, 'event_id' => 2, 'generated_by' => 2, 'file_type' => 'excel', 'file_path' => 'r2.xlsx', 'title' => 'Report', 'created_at' => now()],
-            ['report_id' => 3, 'event_id' => 3, 'generated_by' => 3, 'file_type' => 'pdf', 'file_path' => 'r3.pdf', 'title' => 'Report', 'created_at' => now()],
-            ['report_id' => 4, 'event_id' => 3, 'generated_by' => 4, 'file_type' => 'excel', 'file_path' => 'r4.xlsx', 'title' => 'Report', 'created_at' => now()],
-            ['report_id' => 5, 'event_id' => 2, 'generated_by' => 5, 'file_type' => 'pdf', 'file_path' => 'r5.pdf', 'title' => 'Report', 'created_at' => now()],
+            ['report_id' => 1, 'event_id' => 1, 'generated_by' => 1, 'file_type' => 'pdf', 'file_path' => 'r1.pdf', 'title' => 'Report', 'created_at' => now()],
+            ['report_id' => 2, 'event_id' => 6, 'generated_by' => 2, 'file_type' => 'excel', 'file_path' => 'r2.xlsx', 'title' => 'Report', 'created_at' => now()],
+            ['report_id' => 3, 'event_id' => 7, 'generated_by' => 3, 'file_type' => 'pdf', 'file_path' => 'r3.pdf', 'title' => 'Report', 'created_at' => now()],
+            ['report_id' => 4, 'event_id' => 8, 'generated_by' => 4, 'file_type' => 'excel', 'file_path' => 'r4.xlsx', 'title' => 'Report', 'created_at' => now()],
+            ['report_id' => 5, 'event_id' => 12, 'generated_by' => 5, 'file_type' => 'pdf', 'file_path' => 'r5.pdf', 'title' => 'Report', 'created_at' => now()],
         ]);
 
         // ── 11. TIERS ───────────────────────────────────────────────────────
@@ -225,8 +218,9 @@ class DatabaseSeeder extends Seeder
         // ── 16. MERCHANDISE ────────────────────────────────────────────────
         $this->command->info('Seeding Merchandise...');
         DB::table('merchandise')->insert([
-            ['merch_id' => 1, 'title' => 'HOLO VER 3.0 JACKET', 'description' => 'Premium holographic', 'image_url' => 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&q=80', 'price_usd' => 150, 'price_credits' => 15000, 'rarity' => 'LEGENDARY', 'available_stock' => 48, 'is_limited' => 1, 'required_tier' => 'LORD', 'category' => 'PHYSICAL', 'status' => 'AVAILABLE', 'created_at' => now(), 'updated_at' => now()],
-            ['merch_id' => 2, 'title' => 'LED MASK', 'description' => 'Voice activated LED', 'image_url' => 'https://images.unsplash.com/photo-1509281373149-e957c6296406?auto=format&fit=crop&q=80', 'price_usd' => 50, 'price_credits' => 5000, 'rarity' => 'EPIC', 'available_stock' => 187, 'is_limited' => 1, 'required_tier' => 'KNIGHT', 'category' => 'PHYSICAL', 'status' => 'AVAILABLE', 'created_at' => now(), 'updated_at' => now()],
+            ['merch_id' => 1, 'title' => 'HOLO VER 3.0 JACKET', 'description' => 'Premium holographic jacket', 'image_url' => 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&q=80', 'price_usd' => 150.00, 'price_credits' => 15000, 'rarity' => 'LEGENDARY', 'available_stock' => 48, 'is_limited' => 1, 'required_tier' => 'LORD', 'category' => 'PHYSICAL', 'status' => 'AVAILABLE', 'created_at' => now(), 'updated_at' => now()],
+            ['merch_id' => 2, 'title' => 'LED SOUND RESPONSIVE MASK', 'description' => 'Voice activated LED mask', 'image_url' => 'https://images.unsplash.com/photo-1509281373149-e957c6296406?auto=format&fit=crop&q=80', 'price_usd' => 50.00, 'price_credits' => 5000, 'rarity' => 'EPIC', 'available_stock' => 187, 'is_limited' => 1, 'required_tier' => 'KNIGHT', 'category' => 'PHYSICAL', 'status' => 'AVAILABLE', 'created_at' => now(), 'updated_at' => now()],
+            ['merch_id' => 3, 'title' => 'AR SYNTH SHADES', 'description' => 'Augmented reality synth shades', 'image_url' => 'https://images.unsplash.com/photo-1511447333015-45b65e60f6d5?auto=format&fit=crop&q=80', 'price_usd' => 25.00, 'price_credits' => 2500, 'rarity' => 'RARE', 'available_stock' => 500, 'is_limited' => 0, 'required_tier' => 'SQUIRE', 'category' => 'PHYSICAL', 'status' => 'AVAILABLE', 'created_at' => now(), 'updated_at' => now()],
         ]);
 
         // ── 17. MERCHANDISE ORDERS ─────────────────────────────────────────

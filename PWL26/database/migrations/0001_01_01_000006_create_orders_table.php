@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('orders', function (Blueprint $table) {
             $table->id('order_id');
             $table->unsignedBigInteger('user_id');
-            $table->unsignedBigInteger('event_id');
+            $table->unsignedBigInteger('event_id')->nullable(); // Nullable for merchandise orders
             $table->enum('status', ['pending', 'paid', 'failed', 'canceled'])->default('pending');
             $table->string('payment_method', 50)->nullable();
             $table->string('payment_reference', 100)->nullable();

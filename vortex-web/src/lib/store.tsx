@@ -202,7 +202,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await fetch('http://127.0.0.1:8000/api/events')
+        const response = await fetch('/api/events')
         const result = await response.json()
         if (result.data) {
           const apiEvents = result.data.map((e: any) => {
@@ -211,7 +211,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
             let activeImage = 'https://images.unsplash.com/photo-1574391884720-bbc3740c59d1?auto=format&fit=crop&q=80';
             if (e.banner_url) {
-              activeImage = e.banner_url.startsWith('http') ? e.banner_url : (e.banner_url.startsWith('/') ? 'http://127.0.0.1:8000' + e.banner_url : 'http://127.0.0.1:8000/' + e.banner_url);
+              // Always use the banner_url as-is if it's an absolute URL, otherwise use relative path
+              activeImage = e.banner_url.startsWith('http') ? e.banner_url : e.banner_url;
             }
 
             return {
