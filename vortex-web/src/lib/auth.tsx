@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { authService, AuthUser } from '../services/authService'
+import { authService, type AuthUser } from '../services/authService'
 
 export type User = {
   id: string | number
@@ -85,9 +85,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const result = await authService.register(name, email, password, passwordConfirmation)
         if (result.ok) {
           setUser(convertAuthUserToUser(result.user))
-          return { ok: true }
+          return { ok: true as const }
         }
-        return { ok: false, message: result.message }
+        return { ok: false as const, message: result.message || 'Registration failed' }
       } finally {
         setIsLoading(false)
       }
@@ -105,15 +105,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Accept both username and email, email takes precedence
       const emailToUse = email || (username ? `${username}@vortex.local` : '')
       if (!emailToUse || !password) {
-        return { ok: false, message: 'Email and password are required.' }
+        return { ok: false as const, message: 'Email and password are required.' }
       }
 
       const result = await authService.login(emailToUse, password)
       if (result.ok) {
-        setUser(convertAuthUserToUser(result.user))
-        return result
+        const mappedUser = convertAuthUserToUser(result.user)
+        setUser(mappedUser)
+        return { ok: true as const, user: mappedUser }
       }
-      return result
+      return { ok: false as const, message: result.message || 'Login failed' }
     } finally {
       setIsLoading(false)
     }

@@ -41,7 +41,7 @@ export function AdminVenuesPage() {
   const [activeZone, setActiveZone] = useState<Zone | null>(null)
   
   // Dynamic Event Selection
-  const [selectedEventId, setSelectedEventId] = useState<string>(events[0]?.id || '')
+  const [selectedEventId, setSelectedEventId] = useState<string>(String(events[0]?.id || ''))
   const targetEvent = events.find(e => e.id === selectedEventId) || events[0]
   
   const validTickets = ownedTickets.filter(t => t.eventId === targetEvent?.id)

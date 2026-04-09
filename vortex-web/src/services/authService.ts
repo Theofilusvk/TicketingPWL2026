@@ -26,8 +26,6 @@ export interface RegisterResponse {
   refresh_token?: string
 }
 
-const TOKEN_KEY = 'vortex.auth.token'
-const REFRESH_TOKEN_KEY = 'vortex.auth.refresh_token'
 const USER_KEY = 'vortex.auth.user'
 
 class AuthService {
@@ -119,7 +117,7 @@ class AuthService {
       const response = await authAPI.refreshToken(refreshToken)
 
       if (response.data.success && response.data.data) {
-        const { token, refresh_token } = response.data.data
+        const { token, refresh_token } = response.data.data as { token: string, refresh_token?: string }
 
         apiClient.setToken(token)
         if (refresh_token) {

@@ -141,7 +141,7 @@ export function AdminEventsPage() {
               <tr key={event.id} className="hover:bg-white/[0.03] transition-colors duration-300 group">
                 <td className="p-5">
                    <div className="font-semibold text-sm text-white/90">{event.name}</div>
-                   <div className="font-mono text-[10px] text-white/40 tracking-wider">#{event.id.split('-')[0].toUpperCase()}</div>
+                   <div className="font-mono text-[10px] text-white/40 tracking-wider">#{String(event.id).split('-')[0].toUpperCase()}</div>
                 </td>
                 <td className="p-5">
                   <div className="flex flex-wrap gap-1">

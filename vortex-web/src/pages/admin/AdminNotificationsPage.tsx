@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useStore, EVENT_CATEGORIES } from '../../lib/store'
+import { useStore } from '../../lib/store'
 
 const EMAIL_TEMPLATES = [
   { id: 'venue-change', name: 'Venue Change', subject: 'VENUE UPDATE — Important', body: 'The venue for this event has been relocated. Please check the updated event page for the new address and directions.' },
@@ -12,7 +12,7 @@ export function AdminNotificationsPage() {
   const [activeTab, setActiveTab] = useState<'BLAST' | 'REMINDERS' | 'TEMPLATES'>('BLAST')
 
   // Email Blast state
-  const [selectedEventId, setSelectedEventId] = useState(events[0]?.id || '')
+  const [selectedEventId, setSelectedEventId] = useState<string>(String(events[0]?.id || ''))
   const [blastSubject, setBlastSubject] = useState('')
   const [blastBody, setBlastBody] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -26,7 +26,7 @@ export function AdminNotificationsPage() {
     setIsSending(true)
     setSentSuccess(false)
     setTimeout(() => {
-      sendEmailBlast(selectedEventId, blastSubject, blastBody)
+      sendEmailBlast(String(selectedEventId), blastSubject, blastBody)
       setIsSending(false)
       setSentSuccess(true)
       setBlastSubject('')
@@ -35,9 +35,10 @@ export function AdminNotificationsPage() {
     }, 1500)
   }
 
-  const toggleReminder = (eventId: string, type: 'h3' | 'h1') => {
+  const toggleReminder = (eventId: string | number, type: 'h3' | 'h1') => {
+    const idStr = String(eventId)
     setReminders(prev => {
-      const current = prev[eventId] || { h3: false, h1: false }
+      const current = prev[idStr] || { h3: false, h1: false }
       const updated = { ...current, [type]: !current[type] }
       // Simulate notification generation
       if (updated[type]) {
@@ -46,12 +47,12 @@ export function AdminNotificationsPage() {
           type: 'REMINDER',
           title: `REMINDER SET (${type === 'h3' ? 'H-3' : 'H-1'})`,
           message: `Automated reminder for ${events.find(e => e.id === eventId)?.name || 'event'} has been activated.`,
-          eventId,
+          eventId: idStr,
           timestamp: new Date().toISOString(),
           read: false
         })
       }
-      return { ...prev, [eventId]: updated }
+      return { ...prev, [idStr]: updated }
     })
   }
 

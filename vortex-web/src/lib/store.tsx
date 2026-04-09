@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { eventsAPI, categoriesAPI } from './api-endpoints'
+import { eventsAPI } from './api-endpoints'
 
 export type EventCategory = 'Musik' | 'Festival' | 'Konser' | 'Workshop' | 'Seminar' | 'Olahraga' | 'Seni' | 'Lainnya'
 export const EVENT_CATEGORIES: EventCategory[] = ['Musik', 'Festival', 'Konser', 'Workshop', 'Seminar', 'Olahraga', 'Seni', 'Lainnya']

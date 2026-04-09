@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios'
+import axios, { type AxiosInstance, type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 const TOKEN_KEY = 'vortex.auth.token'
