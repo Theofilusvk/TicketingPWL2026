@@ -13,6 +13,7 @@ export function CheckoutPage() {
   const { requestPermission, scheduleNotification, permission } = useNotification()
   
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
   const [activeMethod, setActiveMethod] = useState<PaymentMethod>('CARD')
   const [queuePassed, setQueuePassed] = useState(false)
   
@@ -20,10 +21,10 @@ export function CheckoutPage() {
   const checkoutItems = cart.filter(item => selectedIds.includes(item.id))
 
   useEffect(() => {
-    if (!isProcessing && checkoutItems.length === 0) {
+    if (!isProcessing && !isSuccess && checkoutItems.length === 0) {
       navigate('/cart')
     }
-  }, [checkoutItems.length, navigate, isProcessing])
+  }, [checkoutItems.length, navigate, isProcessing, isSuccess])
   
   useEffect(() => {
     // Request permission when entering checkout so we can notify them later
@@ -37,40 +38,85 @@ export function CheckoutPage() {
   const tax = subtotal * 0.08
   const total = subtotal + serviceFee + tax
 
-  const handleExecutePayment = () => {
-    // Generate tickets from all checkout items that have ticketId
-    const tickets: Ticket[] = checkoutItems
-      .filter(item => item.ticketId)
-      .map(item => {
-        const event = events.find(e => e.id === item.eventId)
-        return {
-          id: `ticket_${Math.random().toString(16).slice(2)}`,
-          eventId: item.eventId || 'unknown',
-          eventName: event?.name || item.title,
-          venue: event?.venue || 'UNDISCLOSED WAREHOUSE',
-          date: event?.date || '2025-02-14',
-          tier: item.phase || 'GENERAL',
-          gate: 'NORTH_02',
-          orderId: `ORD-${Math.random().toString(16).slice(2, 8).toUpperCase()}`,
-          purchaseDate: new Date().toISOString(),
-          assignedName: item.assignedName || 'UNASSIGNED',
-          ticketId: item.ticketId!,
-        }
-      })
-    
-    // Simple mock credit logic: 100 credits per unit of currency spent
-    const earnedCredits = Math.floor(total * 100)
-    
-    setIsProcessing(true)
-    checkout(tickets, earnedCredits, checkoutItems.map(i => i.id))
-    
-    // Schedule a push notification as a delayed event reminder/confirmation
-    scheduleNotification('🎟️ EVENT SECURED', 2000, {
-      body: `Your ticket for ${tickets[0]?.eventName || 'VORTEX EVENT'} is confirmed. Access your QR code in My Tickets.`,
-      icon: '/vortex-logo.png'
-    })
+  const handleExecutePayment = async () => {
+    // Collect event mapped
+    const itemsGrouped: Record<string, number> = {};
+    checkoutItems.forEach(item => {
+      if(item.ticketId && item.eventId) { // Make sure ticket exists
+           const key = item.eventId.toString();
+           itemsGrouped[key] = (itemsGrouped[key] || 0) + 1;
+      }
+    });
 
-    navigate('/success')
+    const apiItems = Object.keys(itemsGrouped).map(eventId => ({
+      event_id: parseInt(eventId),
+      quantity: itemsGrouped[eventId]
+    }));
+
+    setIsProcessing(true);
+
+    try {
+      const token = localStorage.getItem('vortex.auth.token');
+      const response = await fetch('http://127.0.0.1:8000/api/checkout/process', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          items: apiItems,
+          payment_method: activeMethod,
+          is_merch: false
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Checkout failed');
+      }
+
+      // Generate virtual tickets for frontend visualization
+      const tickets: Ticket[] = checkoutItems
+        .filter(item => item.ticketId)
+        .map((item, idx) => {
+          const event = events.find(e => e.id === item.eventId)
+          return {
+            id: result.data.tickets[idx] || `ticket_${Math.random().toString(16).slice(2)}`,
+            eventId: item.eventId || 'unknown',
+            eventName: event?.name || item.title,
+            venue: event?.venue || 'UNDISCLOSED WAREHOUSE',
+            date: event?.date || '2025-02-14',
+            tier: item.phase || 'GENERAL',
+            gate: 'NORTH_02',
+            orderId: `ORD-${result.data.order_id}`,
+            purchaseDate: new Date().toISOString(),
+            assignedName: item.assignedName || 'UNASSIGNED',
+            ticketId: item.ticketId!,
+          }
+        })
+      
+      const earnedCredits = result.data.earned_credits || 0;
+      
+      setIsSuccess(true);
+      checkout(tickets, earnedCredits, checkoutItems.map(i => i.id))
+      
+      // Schedule a push notification as a delayed event reminder/confirmation
+      scheduleNotification('🎟️ EVENT SECURED', 2000, {
+        body: `Your ticket for ${tickets[0]?.eventName || 'VORTEX EVENT'} is confirmed. Access your QR code in My Tickets.`,
+        icon: '/vortex-logo.png'
+      })
+
+      navigate('/success', { state: { 
+         orderId: result.data.order_id,
+         tickets: tickets,
+         total: total
+      } })
+    } catch (err: any) {
+      alert("Error processing checkout: " + err.message);
+    } finally {
+      setIsProcessing(false);
+    }
   }
 
   const getButtonClass = (method: PaymentMethod) => {

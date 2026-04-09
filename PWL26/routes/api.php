@@ -8,10 +8,6 @@ use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\Api\CheckoutController;
 
-// ==========================================
-// PUBLIC ROUTES
-// ==========================================
-
 // Public Auth
 Route::post('auth/register', [AuthController::class, 'register']);
 Route::post('auth/login', [AuthController::class, 'login']);
@@ -24,14 +20,15 @@ Route::apiResource('categories', CategoryController::class)->only(['index', 'sho
 Route::post('checkout/calculate', [CheckoutController::class, 'calculate']);
 
 
-// ==========================================
-// PROTECTED ROUTES (Require Login)
-// ==========================================
+
 Route::middleware('auth:sanctum')->group(function () {
     
     // Auth State Management
     Route::get('auth/me', [AuthController::class, 'me']);
     Route::post('auth/logout', [AuthController::class, 'logout']);
+
+    // Checkout processing
+    Route::post('checkout/process', [CheckoutController::class, 'process']);
 
     // Admin & Organizer Only Routes
     Route::middleware('role:admin,organizer')->group(function () {
