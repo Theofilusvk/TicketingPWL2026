@@ -104,7 +104,7 @@ type StoreContextValue = {
   deleteTicket: (ticketId: string) => void
   checkInTicket: (ticketId: string) => void
   addCredits: (amount: number) => void
-  
+
   // Admin CRUD Actions
   addEvent: (event: EventData) => void
   updateEvent: (id: string, updates: Partial<EventData>) => void
@@ -176,10 +176,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           return patched
         })
-        return { 
-          cart: parsed.cart || [], 
-          ownedTickets: parsed.ownedTickets || [], 
-          credits: parsed.credits || 0, 
+        return {
+          cart: parsed.cart || [],
+          ownedTickets: parsed.ownedTickets || [],
+          credits: parsed.credits || 0,
           orderHistory: parsed.orderHistory || [],
           events: migratedEvents,
           drops: parsed.drops || defaultDrops,
@@ -208,10 +208,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           const apiEvents = result.data.map((e: any) => {
             const ticketTotalSupply = e.ticket_types ? e.ticket_types.reduce((sum: number, tt: any) => sum + Number(tt.available_stock), 0) : 0
             const mainPrice = e.ticket_types && e.ticket_types.length > 0 ? Number(e.ticket_types[0].price) : 0
-            
+
             let activeImage = 'https://images.unsplash.com/photo-1574391884720-bbc3740c59d1?auto=format&fit=crop&q=80';
             if (e.banner_url) {
-               activeImage = e.banner_url.startsWith('http') ? e.banner_url : (e.banner_url.startsWith('/') ? 'http://127.0.0.1:8000' + e.banner_url : 'http://127.0.0.1:8000/' + e.banner_url);
+              activeImage = e.banner_url.startsWith('http') ? e.banner_url : (e.banner_url.startsWith('/') ? 'http://127.0.0.1:8000' + e.banner_url : 'http://127.0.0.1:8000/' + e.banner_url);
             }
 
             return {
@@ -229,7 +229,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               btnColor: 'bg-primary text-black'
             }
           })
-          
+
           console.log("Database Events Loaded:", apiEvents);
           setStore(prev => ({
             ...prev,
@@ -240,7 +240,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         console.error('Failed to fetch events from backend', err)
       }
     }
-    
+
     fetchEvents()
   }, [])
 
