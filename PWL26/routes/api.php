@@ -19,3 +19,7 @@ Route::apiResource('events', EventController::class);
 // E-Ticket & Validation System
 Route::post('tickets/generate', [TicketController::class, 'generate']);
 Route::post('tickets/validate', [TicketController::class, 'validateTicket']);
+
+// Payment Gateway (Xendit)
+Route::post('payment/checkout', [\App\Http\Controllers\Api\PaymentController::class, 'checkout']);
+Route::post('payment/xendit-webhook', [\App\Http\Controllers\Api\PaymentController::class, 'webhook']);
