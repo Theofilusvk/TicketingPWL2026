@@ -39,7 +39,7 @@ class DatabaseSeeder extends Seeder
             // Extra users to satisfy user_achievements foreign keys (7, 8, 9)
             ['user_id' => 7, 'username' => 'user7', 'email' => 'user7@test.com', 'phone' => '111', 'password' => Hash::make('123'), 'role' => 'user', 'created_at' => now(), 'updated_at' => now()],
             ['user_id' => 8, 'username' => 'user8', 'email' => 'user8@test.com', 'phone' => '222', 'password' => Hash::make('123'), 'role' => 'user', 'created_at' => now(), 'updated_at' => now()],
-            ['user_id' => 9, 'username' => 'user9', 'email' => 'user9@test.com', 'phone' => '333', 'password' => Hash::make('123'), 'role' => 'user', 'created_at' => now(), 'updated_at' => now()],
+            ['user_id' => 9, 'username' => 'jeryko', 'email' => 'jerykoheliandra05@gmail.com', 'phone' => '08123456789', 'password' => Hash::make('jeryko123'), 'role' => 'user', 'created_at' => now(), 'updated_at' => now()],
         ]);
 
         // ── 2. CATEGORIES ───────────────────────────────────────────────────

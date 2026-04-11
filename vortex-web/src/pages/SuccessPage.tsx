@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef } from 'react'
-import { useLocation, Link } from 'react-router-dom'
+import { useLocation, Link, useSearchParams } from 'react-router-dom'
 import { ShareButton } from '../components/ShareButton'
 import { EmailModal } from '../components/EmailModal'
 import { useAudio } from '../lib/audio'
+import { useStore } from '../lib/store'
 
 // Confetti particle system
 function ConfettiCanvas() {
@@ -119,11 +120,67 @@ function AnimatedCheck() {
 
 export function SuccessPage() {
   const { playSuccessSound } = useAudio()
+  const { clearCart, removeFromCart } = useStore()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
+  const urlOrderId = searchParams.get('orderId')
+  const [fetchedOrder, setFetchedOrder] = useState<any>(null)
+  const [isFetching, setIsFetching] = useState(!!urlOrderId)
+
   const [stage, setStage] = useState(0)
   const [showEmailModal, setShowEmailModal] = useState(false)
 
-  const orderData = location.state || {
+  useEffect(() => {
+      let intervalId: number;
+
+      const fetchOrder = async () => {
+          if (!urlOrderId) return;
+          try {
+              const token = localStorage.getItem('vortex.auth.token');
+              const r = await fetch(`http://127.0.0.1:8000/api/orders/${urlOrderId}`, {
+                  headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+              });
+              const res = await r.json();
+              if (res.status === 'success') {
+                  setFetchedOrder(res.data);
+                  if (res.data.status === 'paid') {
+                      try {
+                          const pendingItemsStr = sessionStorage.getItem('vortex_checkout_pending_items');
+                          if (pendingItemsStr) {
+                              const pendingIds = JSON.parse(pendingItemsStr);
+                              pendingIds.forEach((id: string) => removeFromCart(id));
+                              sessionStorage.removeItem('vortex_checkout_pending_items');
+                          }
+                      } catch (e) {
+                          // Silently ignore storage errors to avoid wiping the cart
+                      }
+                      
+                      setIsFetching(false);
+                      if (intervalId) clearInterval(intervalId);
+                  }
+              }
+          } catch(e) {
+              console.error(e)
+          }
+      };
+
+      if (urlOrderId) {
+          fetchOrder(); // Initial fetch
+          intervalId = window.setInterval(() => {
+              if (isFetching) {
+                  fetchOrder();
+              }
+          }, 3000); // Poll every 3 seconds
+      } else {
+          setIsFetching(false);
+      }
+
+      return () => {
+          if (intervalId) clearInterval(intervalId);
+      }
+  }, [urlOrderId, isFetching]);
+
+  const orderData = fetchedOrder || location.state || {
      orderId: 'VTX-99281-XC',
      total: 249.00,
      tickets: [{
@@ -133,7 +190,9 @@ export function SuccessPage() {
        tier: 'VIP TIER'
      }]
   }
+
   useEffect(() => {
+    if (isFetching) return;
     playSuccessSound()
     const timers = [
       setTimeout(() => setStage(1), 300),
@@ -142,10 +201,14 @@ export function SuccessPage() {
       setTimeout(() => setStage(4), 1800),
     ]
     return () => timers.forEach(clearTimeout)
-  }, [])
+  }, [isFetching])
 
   const staggerClass = (s: number) =>
     `transition-all duration-700 ${stage >= s ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`
+
+  if (isFetching) {
+      return <div className="h-screen w-full flex items-center justify-center text-primary font-mono animate-pulse">VERIFYING_TRANSACTION...</div>
+  }
 
   return (
     <>
@@ -217,7 +280,7 @@ export function SuccessPage() {
                        <p className="font-accent text-primary/60 text-[10px] uppercase tracking-widest mb-1">
                          TOTAL_ORDER_PAID
                        </p>
-                       <p className="font-mono tracking-widest text-white text-3xl font-bold">${orderData.total.toFixed(2)}</p>
+                       <p className="font-mono tracking-widest text-white text-3xl font-bold">${Number(orderData.total).toFixed(2)}</p>
                      </div>
                    )}
                  </div>

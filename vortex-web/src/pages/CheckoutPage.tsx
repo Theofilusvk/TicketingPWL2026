@@ -77,20 +77,25 @@ export function CheckoutPage() {
       
       if (isTicketCheckout) {
         // Handle ticket checkout with queue
-        const itemsGrouped: Record<string, number> = {};
+        const itemsGrouped: Record<string, { eventId: number, phase: string, price: number, qty: number }> = {};
         checkoutItems.forEach(item => {
           if(item.ticketId && item.eventId) {
-            const key = item.eventId.toString();
-            itemsGrouped[key] = (itemsGrouped[key] || 0) + 1;
+            const key = `${item.eventId}_${item.phase || 'N/A'}_${item.price}`;
+            if (!itemsGrouped[key]) {
+              itemsGrouped[key] = { eventId: parseInt(item.eventId), phase: item.phase || '', price: item.price, qty: 0 };
+            }
+            itemsGrouped[key].qty++;
           }
         });
 
-        const apiItems = Object.keys(itemsGrouped).map(eventId => ({
-          event_id: parseInt(eventId),
-          quantity: itemsGrouped[eventId]
+        const apiItems = Object.values(itemsGrouped).map(g => ({
+          event_id: g.eventId,
+          phase: g.phase,
+          price: g.price,
+          quantity: g.qty
         }));
 
-        const response = await fetch('/api/checkout/process', {
+        const response = await fetch('/api/payment/checkout', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -110,27 +115,34 @@ export function CheckoutPage() {
           throw new Error(result.message || `Checkout failed (${response.status})`);
         }
 
+        if (result.invoice_url) {
+           sessionStorage.setItem('vortex_checkout_pending_items', JSON.stringify(checkoutItems.map(i => i.id)));
+           window.location.href = result.invoice_url;
+           return;
+        }
+
+        // Fallback for mock environment
         // Generate virtual tickets for frontend visualization
         const tickets: Ticket[] = checkoutItems
           .filter(item => item.ticketId)
           .map((item, idx) => {
             const event = events.find(e => e.id === item.eventId)
             return {
-              id: result.data.tickets[idx] || `ticket_${Math.random().toString(16).slice(2)}`,
+              id: result.data?.tickets?.[idx] || `ticket_${Math.random().toString(16).slice(2)}`,
               eventId: item.eventId || 'unknown',
               eventName: event?.name || item.title,
               venue: event?.venue || 'UNDISCLOSED WAREHOUSE',
               date: event?.date || '2025-02-14',
               tier: item.phase || 'GENERAL',
               gate: 'NORTH_02',
-              orderId: `ORD-${result.data.order_id}`,
+              orderId: `ORD-${result.data?.order_id || 'XXX'}`,
               purchaseDate: new Date().toISOString(),
               assignedName: item.assignedName || 'UNASSIGNED',
               ticketId: item.ticketId!,
             }
           })
         
-        const earnedCredits = result.data.earned_credits || 0;
+        const earnedCredits = result.data?.earned_credits || 0;
         
         setIsSuccess(true);
         checkout([], earnedCredits, checkoutItems.map(i => i.id))
@@ -142,7 +154,7 @@ export function CheckoutPage() {
         })
 
         navigate('/success', { state: { 
-           orderId: result.data.order_id,
+           orderId: result.data?.order_id,
            tickets: tickets,
            total: total
         } })

@@ -31,6 +31,9 @@ Route::post('checkout/calculate', [CheckoutController::class, 'calculate']);
 // Merchandise Calculation (Publicly accessible for cart simulation)
 Route::post('merchandise/calculate', [MerchandiseOrderController::class, 'calculate']);
 
+// Payment Webhook
+Route::post('payment/xendit-webhook', [\App\Http\Controllers\Api\PaymentController::class, 'webhook']);
+
 
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -38,6 +41,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Auth State Management
     Route::get('auth/me', [AuthController::class, 'me']);
     Route::post('auth/logout', [AuthController::class, 'logout']);
+
+    // Orders fetching
+    Route::get('orders/{id}', [\App\Http\Controllers\Api\PaymentController::class, 'getOrderDetails']);
 
     // User Notifications
     Route::get('notifications', [NotificationController::class, 'index']);
@@ -52,6 +58,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Checkout processing
     Route::post('checkout/process', [CheckoutController::class, 'process']);
+    Route::post('payment/checkout', [\App\Http\Controllers\Api\PaymentController::class, 'checkout']);
 
     // Admin & Organizer Only Routes
     Route::middleware('role:admin,organizer')->group(function () {
