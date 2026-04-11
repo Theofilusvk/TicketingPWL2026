@@ -59,22 +59,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         'Authorization': `Bearer ${token}`
       }
     })
-    .then(async res => {
-      if (!res.ok) throw new Error('Session exact')
-      return res.json()
-    })
-    .then(payload => {
-      setUser(mapUser(payload.data))
-    })
-    .catch(() => {
-      // Invalid token
-      setToken(null)
-      localStorage.removeItem(STORAGE_KEY)
-      setUser(null)
-    })
-    .finally(() => {
-      setIsInitializing(false)
-    })
+      .then(async res => {
+        if (!res.ok) throw new Error('Session exact')
+        return res.json()
+      })
+      .then(payload => {
+        setUser(mapUser(payload.data))
+      })
+      .catch(() => {
+        // Invalid token
+        setToken(null)
+        localStorage.removeItem(STORAGE_KEY)
+        setUser(null)
+      })
+      .finally(() => {
+        setIsInitializing(false)
+      })
   }, [token])
 
   const signup = useCallback(
@@ -115,11 +115,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({
+          email: username.includes('@') ? username : undefined,
+          username: !username.includes('@') ? username : undefined,
+          password
+        })
       })
 
       const payload = await response.json()
-      
+
       if (!response.ok) {
         return { ok: false as const, message: payload.message || 'Login failed' }
       }

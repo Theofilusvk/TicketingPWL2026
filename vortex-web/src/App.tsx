@@ -34,6 +34,7 @@ const AdminDropsPage = lazy(() => import('./pages/admin/AdminDropsPage').then(mo
 const AdminNewsPage = lazy(() => import('./pages/admin/AdminNewsPage').then(module => ({ default: module.AdminNewsPage })))
 const AdminNotificationPage = lazy(() => import('./pages/admin/AdminNotificationPage').then(module => ({ default: module.AdminNotificationPage })))
 const AdminAnalyticsPage = lazy(() => import('./pages/admin/AdminAnalyticsPage').then(module => ({ default: module.AdminAnalyticsPage })))
+const AdminReportsPage = lazy(() => import('./pages/admin/AdminReportsPage').then(module => ({ default: module.AdminReportsPage })))
 
 import { AudioProvider } from './lib/audio'
 import { PageLoader } from './components/PageLoader'
@@ -58,6 +59,7 @@ export function App() {
               <Route path="news" element={<AdminNewsPage />} />
               <Route path="notifications" element={<AdminNotificationPage />} />
               <Route path="analytics" element={<AdminAnalyticsPage />} />
+              <Route path="reports" element={<AdminReportsPage />} />
             </Route>
 
             <Route element={<AppShell />}>

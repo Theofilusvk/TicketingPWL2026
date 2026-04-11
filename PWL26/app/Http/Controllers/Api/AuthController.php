@@ -18,7 +18,7 @@ class AuthController extends Controller
             'password' => 'required|string|min:8',
         ]);
 
-        $validated['password'] = Hash::make($validated['password']);
+        // Password will be automatically hashed by the User model's 'hashed' cast
         $validated['role'] = 'user'; // Strictly set as user for registration
 
         $user = User::create($validated);
