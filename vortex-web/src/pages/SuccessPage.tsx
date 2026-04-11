@@ -120,7 +120,7 @@ function AnimatedCheck() {
 
 export function SuccessPage() {
   const { playSuccessSound } = useAudio()
-  const { clearCart, removeFromCart } = useStore()
+  const { removeFromCart } = useStore()
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const urlOrderId = searchParams.get('orderId')
@@ -333,16 +333,34 @@ export function SuccessPage() {
                 <span className="font-accent text-[8px] text-zinc-500 tracking-widest uppercase">ACCESS_VAULT</span>
               </div>
             </Link>
-            <Link
-              to="/tickets"
-              className="flex items-center gap-4 p-5 border border-white/10 hover:border-hot-coral/50 hover:bg-hot-coral/5 transition-all group bg-black/40 hover:shadow-[0_0_20px_rgba(255,77,77,0.05)]"
+            <button
+              onClick={() => {
+                if (!urlOrderId) return;
+                const token = localStorage.getItem('vortex.auth.token');
+                fetch(`http://127.0.0.1:8000/api/orders/${urlOrderId}/download-pdf`, {
+                  headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/pdf' }
+                })
+                .then(res => res.blob())
+                .then(blob => {
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `e-ticket-ORD-${urlOrderId}.pdf`;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  window.URL.revokeObjectURL(url);
+                })
+                .catch(err => console.error('Download failed', err));
+              }}
+              className="flex items-center gap-4 p-5 border border-white/10 hover:border-hot-coral/50 hover:bg-hot-coral/5 transition-all group bg-black/40 hover:shadow-[0_0_20px_rgba(255,77,77,0.05)] text-left"
             >
               <span className="material-symbols-outlined text-hot-coral text-xl group-hover:scale-110 transition-transform">qr_code_2</span>
               <div className="text-left flex flex-col">
                 <span className="font-display text-xl text-white group-hover:text-hot-coral transition-colors tracking-wide">DOWNLOAD QR</span>
                 <span className="font-accent text-[8px] text-zinc-500 tracking-widest uppercase">PDF_EXPORT</span>
               </div>
-            </Link>
+            </button>
             <Link
               to="/events"
               className="flex items-center gap-4 p-5 border border-white/10 hover:border-primary/50 hover:bg-primary/5 transition-all group bg-black/40 hover:shadow-[0_0_20px_rgba(203,255,0,0.05)]"
@@ -376,10 +394,11 @@ export function SuccessPage() {
       <EmailModal
         isOpen={showEmailModal}
         onClose={() => setShowEmailModal(false)}
+        orderId={urlOrderId || undefined}
         ticketInfo={{
-          eventName: 'NEON CHAOS 2025',
-          ticketId: '#VTX-99281-XC',
-          tier: 'VIP TIER'
+          eventName: orderData.tickets?.[0]?.eventName || 'VORTEX EVENT',
+          ticketId: orderData.orderId || '#N/A',
+          tier: orderData.tickets?.[0]?.tier || 'GENERAL'
         }}
       />
     </>

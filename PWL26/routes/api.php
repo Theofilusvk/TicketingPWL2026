@@ -44,6 +44,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Orders fetching
     Route::get('orders/{id}', [\App\Http\Controllers\Api\PaymentController::class, 'getOrderDetails']);
+    Route::get('orders/{id}/download-pdf', [\App\Http\Controllers\Api\PaymentController::class, 'downloadPdf']);
+    Route::post('orders/{id}/send-email', [\App\Http\Controllers\Api\PaymentController::class, 'resendEmail']);
 
     // User Notifications
     Route::get('notifications', [NotificationController::class, 'index']);

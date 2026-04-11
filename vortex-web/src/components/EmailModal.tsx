@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 interface EmailModalProps {
   isOpen: boolean
   onClose: () => void
+  orderId?: string
   ticketInfo?: {
     eventName: string
     ticketId: string
@@ -12,40 +13,55 @@ interface EmailModalProps {
 
 type SendStatus = 'idle' | 'sending' | 'success' | 'error'
 
-export function EmailModal({ isOpen, onClose, ticketInfo }: EmailModalProps) {
+export function EmailModal({ isOpen, onClose, orderId, ticketInfo }: EmailModalProps) {
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<SendStatus>('idle')
-  const [progress, setProgress] = useState(0)
+  const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
     if (!isOpen) {
       setEmail('')
       setStatus('idle')
-      setProgress(0)
+      setErrorMsg('')
     }
   }, [isOpen])
 
-  useEffect(() => {
-    if (status === 'sending') {
-      const interval = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(interval)
-            setStatus('success')
-            return 100
-          }
-          return prev + Math.random() * 15 + 5
-        })
-      }, 200)
-      return () => clearInterval(interval)
-    }
-  }, [status])
-
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email.trim() || !email.includes('@')) return
+    if (!orderId) {
+      setErrorMsg('No order ID available')
+      setStatus('error')
+      return
+    }
+
     setStatus('sending')
-    setProgress(0)
+    setErrorMsg('')
+
+    try {
+      const token = localStorage.getItem('vortex.auth.token')
+      const response = await fetch(`http://127.0.0.1:8000/api/orders/${orderId}/send-email`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email })
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.status === 'success') {
+        setStatus('success')
+      } else {
+        setErrorMsg(result.message || 'Failed to send email')
+        setStatus('error')
+      }
+    } catch (err) {
+      setErrorMsg('Network error. Please try again.')
+      setStatus('error')
+    }
   }
 
   if (!isOpen) return null
@@ -138,17 +154,15 @@ export function EmailModal({ isOpen, onClose, ticketInfo }: EmailModalProps) {
               </div>
 
               {status === 'sending' && (
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-white/40 font-medium">Sending...</span>
-                    <span className="text-indigo-300 font-mono">{Math.min(100, Math.round(progress))}%</span>
-                  </div>
-                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-gradient-to-r from-indigo-500 to-sky-400 rounded-full transition-all duration-200 shadow-[0_0_10px_rgba(99,102,241,0.5)]"
-                      style={{ width: `${Math.min(100, progress)}%` }}
-                    />
-                  </div>
+                <div className="flex items-center gap-3 py-2">
+                  <div className="w-5 h-5 border-2 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin" />
+                  <span className="text-sm text-white/50">Mengirim e-ticket...</span>
+                </div>
+              )}
+
+              {status === 'error' && (
+                <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 text-sm text-rose-300">
+                  {errorMsg}
                 </div>
               )}
 

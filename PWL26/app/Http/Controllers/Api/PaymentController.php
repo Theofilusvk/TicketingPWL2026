@@ -27,10 +27,19 @@ class PaymentController extends Controller
             // Generate Tickets
             $orderItems = DB::table('order_items')->where('order_id', $order->order_id)->get();
             foreach ($orderItems as $item) {
+                $assignments = !empty($item->assignments) ? json_decode($item->assignments, true) : [];
                 for ($i = 0; $i < $item->quantity; $i++) {
+                    $assignment = $assignments[$i] ?? [];
+                    $uniqueCode = 'TCK-' . strtoupper(\Illuminate\Support\Str::random(8));
+                    $qrPath = \App\Helpers\QrCodeGenerator::generateForTicket($uniqueCode, 'order_' . $order->order_id);
+                    
                     DB::table('tickets')->insert([
                         'order_item_id' => $item->order_item_id,
-                        'unique_code' => 'TCK-' . strtoupper(Str::random(8)),
+                        'unique_code' => $uniqueCode,
+                        'qr_code_path' => $qrPath,
+                        'holder_name' => $assignment['name'] ?? null,
+                        'holder_email' => $assignment['email'] ?? null,
+                        'holder_identity' => $assignment['identity'] ?? null,
                         'status' => 'available',
                         'created_at' => now(),
                         'updated_at' => now(),
@@ -86,6 +95,7 @@ class PaymentController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.phase' => 'nullable|string',
             'items.*.price' => 'nullable|numeric',
+            'items.*.assignments' => 'nullable|array',
             'payment_method' => 'nullable|string',
         ]);
 
@@ -99,9 +109,22 @@ class PaymentController extends Controller
             foreach ($validated['items'] as $item) {
                 // Try to map to the exact tier if provided, otherwise default to first available
                 $query = TicketType::lockForUpdate()->where('event_id', $item['event_id']);
-                if (!empty($item['phase'])) {
-                    $query->where('name', 'like', '%' . $item['phase'] . '%');
+                $searchTerm = $item['phase'] ?? '';
+                
+                if ($searchTerm === 'PHASE_01') {
+                    $query->where(function($q) {
+                        $q->where('name', 'like', '%General%')->orWhere('name', 'like', '%Regular%');
+                    });
+                } else if ($searchTerm === 'PHASE_02') {
+                    $query->where('name', 'like', '%VIP%');
+                } else if ($searchTerm === 'ELITE') {
+                    $query->where(function($q) {
+                        $q->where('name', 'like', '%VVIP%')->orWhere('name', 'like', '%Premium%')->orWhere('name', 'like', '%Pass%');
+                    });
+                } else if (!empty($searchTerm)) {
+                    $query->where('name', 'like', '%' . $searchTerm . '%');
                 }
+                
                 $ticketType = $query->first();
 
                 if (!$ticketType) {
@@ -137,6 +160,7 @@ class PaymentController extends Controller
                     'ticket_type_id' => $ticketType->ticket_type_id,
                     'quantity' => $item['quantity'],
                     'unit_price' => $unitPrice,
+                    'assignments' => $item['assignments'] ?? [],
                 ];
             }
 
@@ -164,6 +188,7 @@ class PaymentController extends Controller
                     'ticket_type_id' => $b['ticket_type_id'],
                     'quantity' => $b['quantity'],
                     'unit_price' => $b['unit_price'],
+                    'assignments' => json_encode($b['assignments']),
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -294,5 +319,79 @@ class PaymentController extends Controller
                 'status' => $order->status
             ]
         ]);
+    }
+
+    /**
+     * Download the PDF e-ticket for a given order.
+     */
+    public function downloadPdf($id)
+    {
+        $order = Order::with(['event'])->find($id);
+        if (!$order) {
+            return response()->json(['status' => 'error', 'message' => 'Order not found'], 404);
+        }
+
+        $user = DB::table('users')->where('user_id', $order->user_id)->first();
+
+        $orderItems = DB::table('order_items')
+            ->join('ticket_types', 'order_items.ticket_type_id', '=', 'ticket_types.ticket_type_id')
+            ->where('order_items.order_id', $order->order_id)
+            ->select('order_items.*', 'ticket_types.name as ticket_name')
+            ->get();
+
+        $tickets = DB::table('tickets')
+            ->whereIn('order_item_id', $orderItems->pluck('order_item_id'))
+            ->get();
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.ticket', [
+            'order' => $order,
+            'user' => $user,
+            'orderItems' => $orderItems,
+            'tickets' => $tickets
+        ]);
+
+        return $pdf->download('e-ticket-ORD-' . $order->order_id . '.pdf');
+    }
+
+    /**
+     * Re-send the e-ticket email for a given order.
+     */
+    public function resendEmail(Request $request, $id)
+    {
+        $order = Order::find($id);
+        if (!$order) {
+            return response()->json(['status' => 'error', 'message' => 'Order not found'], 404);
+        }
+
+        // Optionally override the recipient email
+        $targetEmail = $request->input('email');
+
+        if ($targetEmail) {
+            // Send to a custom email address
+            $user = DB::table('users')->where('user_id', $order->user_id)->first();
+            $orderItems = DB::table('order_items')
+                ->join('ticket_types', 'order_items.ticket_type_id', '=', 'ticket_types.ticket_type_id')
+                ->where('order_items.order_id', $order->order_id)
+                ->select('order_items.*', 'ticket_types.name as ticket_name')
+                ->get();
+            $tickets = DB::table('tickets')
+                ->whereIn('order_item_id', $orderItems->pluck('order_item_id'))
+                ->get();
+
+            $pdfContent = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.ticket', [
+                'order' => $order,
+                'user' => $user,
+                'orderItems' => $orderItems,
+                'tickets' => $tickets
+            ])->output();
+
+            \Illuminate\Support\Facades\Mail::to($targetEmail)
+                ->send(new \App\Mail\TicketEmail($order, $user, $orderItems, $tickets, $pdfContent));
+        } else {
+            // Re-dispatch the original job (sends to user's registered email)
+            SendTicketEmail::dispatch($order->order_id);
+        }
+
+        return response()->json(['status' => 'success', 'message' => 'Email sent successfully']);
     }
 }

@@ -1,11 +1,11 @@
 import { useState, useRef } from 'react'
-import { useStore, type EventData, DEFAULT_CATEGORIES } from '../../lib/store'
+import { useStore, type EventData, type EventCategory, EVENT_CATEGORIES } from '../../lib/store'
 
 export function AdminEventsPage() {
-  const { events, categories, deleteEvent, addEvent, updateEvent } = useStore()
+  const { events, deleteEvent, addEvent, updateEvent } = useStore()
 
   // Use API categories if available, otherwise fallback to defaults
-  const categoryList = categories.length > 0 ? categories.map(c => c.name) : DEFAULT_CATEGORIES
+  const categoryList = EVENT_CATEGORIES
   const [showModal, setShowModal] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -271,7 +271,7 @@ export function AdminEventsPage() {
                   <label className="text-[11px] font-semibold text-white/40 uppercase tracking-widest pl-1">Kategori</label>
                   <select
                     value={newEvent.category}
-                    onChange={e => setNewEvent({...newEvent, category: e.target.value})}
+                    onChange={e => setNewEvent({...newEvent, category: e.target.value as EventCategory})}
                     className="w-full bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all duration-300 shadow-inner [color-scheme:dark] appearance-none cursor-pointer"
                   >
                     {categoryList.map(cat => (

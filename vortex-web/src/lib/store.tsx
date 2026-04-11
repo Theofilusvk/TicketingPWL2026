@@ -12,6 +12,9 @@ export type CartItem = {
   price: number
   assignedName?: string
   assignedPhone?: string
+  assignedEmail?: string
+  assignedIdentityNumber?: string
+  assignedDob?: string
   image?: string // for merch
 }
 

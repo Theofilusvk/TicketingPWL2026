@@ -15,14 +15,16 @@ class TicketEmail extends Mailable
     public $order;
     public $user;
     public $orderItems;
-    public $ticketCodes;
+    public $tickets;
+    public $pdfContent;
 
-    public function __construct($order, $user, $orderItems, $ticketCodes)
+    public function __construct($order, $user, $orderItems, $tickets, $pdfContent = null)
     {
         $this->order = $order;
         $this->user = $user;
         $this->orderItems = $orderItems;
-        $this->ticketCodes = $ticketCodes;
+        $this->tickets = $tickets;
+        $this->pdfContent = $pdfContent;
     }
 
     public function envelope(): Envelope
@@ -37,5 +39,20 @@ class TicketEmail extends Mailable
         return new Content(
             markdown: 'emails.ticket',
         );
+    }
+
+    /**
+     * Get the attachments for the message.
+     *
+     * @return array<int, \Illuminate\Mail\Mailables\Attachment>
+     */
+    public function attachments(): array
+    {
+        $attachments = [];
+        if ($this->pdfContent) {
+            $attachments[] = \Illuminate\Mail\Mailables\Attachment::fromData(fn () => $this->pdfContent, 'E-Ticket_Vortex.pdf')
+                    ->withMime('application/pdf');
+        }
+        return $attachments;
     }
 }

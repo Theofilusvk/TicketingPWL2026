@@ -77,14 +77,19 @@ export function CheckoutPage() {
       
       if (isTicketCheckout) {
         // Handle ticket checkout with queue
-        const itemsGrouped: Record<string, { eventId: number, phase: string, price: number, qty: number }> = {};
+        const itemsGrouped: Record<string, { eventId: number, phase: string, price: number, qty: number, assignments: any[] }> = {};
         checkoutItems.forEach(item => {
           if(item.ticketId && item.eventId) {
             const key = `${item.eventId}_${item.phase || 'N/A'}_${item.price}`;
             if (!itemsGrouped[key]) {
-              itemsGrouped[key] = { eventId: parseInt(item.eventId), phase: item.phase || '', price: item.price, qty: 0 };
+              itemsGrouped[key] = { eventId: parseInt(item.eventId), phase: item.phase || '', price: item.price, qty: 0, assignments: [] };
             }
             itemsGrouped[key].qty++;
+            itemsGrouped[key].assignments.push({
+               name: item.assignedName,
+               email: item.assignedEmail,
+               identity: item.assignedIdentityNumber
+            });
           }
         });
 
@@ -92,7 +97,8 @@ export function CheckoutPage() {
           event_id: g.eventId,
           phase: g.phase,
           price: g.price,
-          quantity: g.qty
+          quantity: g.qty,
+          assignments: g.assignments
         }));
 
         const response = await fetch('/api/payment/checkout', {
