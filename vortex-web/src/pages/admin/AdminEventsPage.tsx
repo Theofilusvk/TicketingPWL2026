@@ -1,5 +1,5 @@
-import { useState, useRef, useMemo } from 'react'
-import { useStore, type EventData, EVENT_CATEGORIES, type EventCategory } from '../../lib/store'
+import { useState, useRef, useMemo, useEffect } from 'react'
+import { type EventData, EVENT_CATEGORIES, type EventCategory } from '../../lib/store'
 
 type EventFormData = {
   name: string
@@ -7,6 +7,7 @@ type EventFormData = {
   startDate: string
   endDate: string
   category: EventCategory
+  category_id?: string
   status: 'ACTIVE' | 'DRAFT' | 'LOCKED' | 'COMPLETED'
   capacity: number
   venue: string
@@ -19,6 +20,7 @@ const INITIAL_FORM: EventFormData = {
   startDate: '',
   endDate: '',
   category: 'Musik',
+  category_id: '',
   status: 'ACTIVE',
   capacity: 500,
   venue: '',
@@ -47,7 +49,65 @@ function getEventStatus(event: EventData): { label: string; color: string } {
 }
 
 export function AdminEventsPage() {
-  const { events, deleteEvent, addEvent, updateEvent } = useStore()
+  const [apiEvents, setApiEvents] = useState<EventData[]>([])
+  const [categories, setCategories] = useState<{ id: string, name: string }[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/categories')
+      if (res.ok) {
+        const json = await res.json()
+        if (json.data) {
+          setCategories(json.data.map((c: any) => ({ id: String(c.category_id), name: c.name })))
+        }
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const fetchEvents = async () => {
+    try {
+      setIsLoading(true)
+      const res = await fetch('/api/events')
+      if (res.ok) {
+        const json = await res.json()
+        if (json.data) {
+          const mapped = json.data.map((e: any) => {
+            // Aggregate ticket data
+            const tickets = e.ticket_types || []
+            const totalStock = tickets.reduce((acc: number, t: any) => acc + t.available_stock, 0)
+            const minPrice = tickets.length > 0 ? Math.min(...tickets.map((t: any) => parseFloat(t.price))) : 0
+            
+            return {
+              id: String(e.event_id),
+              name: e.title,
+              date: e.start_time.split(' ')[0], // YYYY-MM-DD
+              category: e.category ? e.category.name : 'Unknown',
+              status: e.status ? e.status.toUpperCase() : (new Date(e.start_time) < new Date() ? 'PAST' : 'ACTIVE'),
+              capacity: totalStock > 0 ? totalStock : 500,
+              ticketsLeft: totalStock > 0 ? totalStock : 500,
+              venue: e.location,
+              price: minPrice,
+              image: e.banner_url || 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?auto=format&fit=crop&q=80',
+            }
+          })
+          setApiEvents(mapped)
+        }
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchEvents()
+    fetchCategories()
+  }, [])
+
   const [showModal, setShowModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [detailEvent, setDetailEvent] = useState<EventData | null>(null)
@@ -66,14 +126,14 @@ export function AdminEventsPage() {
 
   // Filtered events
   const filteredEvents = useMemo(() => {
-    return events.filter(e => {
+    return apiEvents.filter(e => {
       const matchesSearch = e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         e.venue.toLowerCase().includes(searchQuery.toLowerCase())
       const status = getEventStatus(e)
       const matchesFilter = filterStatus === 'ALL' || status.label === filterStatus
       return matchesSearch && matchesFilter
     })
-  }, [events, searchQuery, filterStatus])
+  }, [apiEvents, searchQuery, filterStatus])
 
   const openAddModal = () => {
     setIsEditing(false)
@@ -95,6 +155,8 @@ export function AdminEventsPage() {
       startDate: dateStr,
       endDate: dateStr,
       category: event.category || 'Musik',
+      // Get the correct category_id based on the currently displayed category name
+      category_id: categories.find(c => c.name === event.category)?.id || '',
       status: event.status,
       capacity: event.capacity,
       venue: event.venue,
@@ -153,8 +215,14 @@ export function AdminEventsPage() {
       formData.append('location', form.venue || 'THE FOUNDRY')
       formData.append('start_time', `${form.startDate} 19:00:00`)
       formData.append('end_time', `${form.endDate || form.startDate} 23:59:59`)
-      formData.append('organizer_id', '2')
-      formData.append('category_id', '1')
+      formData.append('organizer_id', '2') // Usually mapped to auth()->id() if backend expects matching ID
+      formData.append('category_id', form.category_id || (categories.length > 0 ? categories[0].id : '1'))
+      formData.append('status', 'active')
+
+      // Send default ticket payload so it's a valid usable event
+      formData.append('ticket_types[0][name]', 'General Admission')
+      formData.append('ticket_types[0][price]', '150000')
+      formData.append('ticket_types[0][available_stock]', '500')
 
       if (posterFile) {
         formData.append('banner', posterFile)
@@ -165,8 +233,8 @@ export function AdminEventsPage() {
       }
 
       const url = isEditing
-        ? `http://127.0.0.1:8000/api/events/${editingId}`
-        : 'http://127.0.0.1:8000/api/events'
+        ? `/api/events/${editingId}`
+        : '/api/events'
 
       const token = localStorage.getItem('vortex.auth.token')
       const response = await fetch(url, {
@@ -181,26 +249,7 @@ export function AdminEventsPage() {
       const result = await response.json()
 
       if (response.ok && result.data) {
-        const eventPayload: Partial<EventData> = {
-          name: form.name,
-          date: form.startDate.replace(/-/g, '_'),
-          category: form.category,
-          status: form.status,
-          capacity: form.capacity,
-          ticketsLeft: form.capacity,
-          venue: form.venue,
-          price: form.price,
-          image: posterPreview || 'https://images.unsplash.com/photo-1574391884720-bbc3740c59d1?auto=format&fit=crop&q=80',
-        }
-
-        if (isEditing) {
-          updateEvent(editingId!, eventPayload)
-        } else {
-          addEvent({
-            ...(eventPayload as EventData),
-            id: result.data.event_id.toString(),
-          })
-        }
+        await fetchEvents() // Re-fetch from API to update the list instead of manual store manipulation
         setShowModal(false)
         setForm(INITIAL_FORM)
         setPosterPreview(null)
@@ -227,8 +276,8 @@ export function AdminEventsPage() {
     if (!confirm(`Are you sure you want to delete "${event.name}"?`)) return
 
     try {
-      const token = localStorage.getItem('vortex.auth.token')
-      const res = await fetch(`http://127.0.0.1:8000/api/events/${event.id}`, {
+      const token = localStorage.getItem('vortex.auth.token') || localStorage.getItem('auth_token')
+      const res = await fetch(`/api/events/${event.id}`, {
         method: 'DELETE',
         headers: {
           'Accept': 'application/json',
@@ -236,7 +285,7 @@ export function AdminEventsPage() {
         }
       })
       if (res.ok) {
-        deleteEvent(event.id)
+        await fetchEvents() // Fetch latest event list after deletion
       } else {
         alert('Could not delete event from database.')
       }
@@ -251,7 +300,10 @@ export function AdminEventsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-4xl font-semibold text-white tracking-tight drop-shadow-md">Event Management</h1>
-          <p className="text-sm font-medium text-white/50 mt-1.5">Add, edit, and monitor global events</p>
+          <p className="text-sm font-medium text-white/50 mt-1.5 flex items-center gap-2">
+            Add, edit, and monitor global events
+            {isLoading && <span className="text-indigo-400 animate-pulse">(Connecting to live data...)</span>}
+          </p>
         </div>
         <button
           onClick={openAddModal}
@@ -568,12 +620,14 @@ export function AdminEventsPage() {
                     <div className="space-y-2">
                       <label className="text-[11px] font-semibold text-white/40 uppercase tracking-widest pl-1">Kategori</label>
                       <select
-                        value={form.category}
-                        onChange={e => setForm({ ...form, category: e.target.value as EventCategory })}
+                        value={form.category_id}
+                        onChange={e => setForm({ ...form, category_id: e.target.value })}
+                        required
                         className="w-full bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all duration-300 [color-scheme:dark] appearance-none cursor-pointer"
                       >
-                        {EVENT_CATEGORIES.map(cat => (
-                          <option key={cat} value={cat} className="bg-zinc-900 text-white">{cat}</option>
+                        <option value="" disabled className="bg-zinc-900 text-white/50">Select category...</option>
+                        {categories.map(cat => (
+                          <option key={cat.id} value={cat.id} className="bg-zinc-900 text-white">{cat.name}</option>
                         ))}
                       </select>
                     </div>

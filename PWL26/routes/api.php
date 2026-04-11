@@ -10,6 +10,10 @@ use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\MerchandiseOrderController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\NewsController;
+use App\Http\Controllers\Api\AnalyticsController;
+use App\Http\Controllers\Api\AdminUserController;
+use App\Http\Controllers\Api\AdminMerchandiseController;
+use App\Http\Controllers\Api\AdminReportController;
 
 // Public Auth
 Route::post('auth/register', [AuthController::class, 'register']);
@@ -82,6 +86,24 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('admin/news/{news}/update', [NewsController::class, 'updateAdmin']);
         Route::delete('admin/news/{news}', [NewsController::class, 'destroyAdmin']);
         Route::get('admin/news', [NewsController::class, 'adminIndex']);
+
+        // Admin Analytics Routes
+        Route::get('admin/analytics/event-comparison', [AnalyticsController::class, 'getEventComparison']);
+        Route::get('admin/analytics/revenue', [AnalyticsController::class, 'getRevenueAnalytics']);
+        Route::get('admin/analytics/transactions', [AnalyticsController::class, 'getTransactionMetrics']);
+
+        // Admin User Management Routes
+        Route::get('admin/users', [AdminUserController::class, 'index']);
+        Route::put('admin/users/{id}', [AdminUserController::class, 'update']);
+        Route::delete('admin/users/{id}', [AdminUserController::class, 'destroy']);
+
+        // Admin Merchandise Management Routes
+        Route::get('admin/merchandise', [AdminMerchandiseController::class, 'index']);
+        Route::post('admin/merchandise', [AdminMerchandiseController::class, 'store']);
+        Route::delete('admin/merchandise/{id}', [AdminMerchandiseController::class, 'destroy']);
+
+        // Admin Reports Management
+        Route::post('admin/reports/email', [AdminReportController::class, 'sendEmailReport']);
     });
 
 });

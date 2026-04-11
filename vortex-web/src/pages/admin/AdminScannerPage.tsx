@@ -16,7 +16,7 @@ export function AdminScannerPage() {
     
     try {
       // Connect to Laravel Backend /api/tickets/validate
-      const response = await fetch('http://127.0.0.1:8000/api/tickets/validate', {
+      const response = await fetch('/api/tickets/validate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

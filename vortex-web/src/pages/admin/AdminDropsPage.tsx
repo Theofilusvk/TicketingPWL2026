@@ -1,36 +1,106 @@
-import { useState } from 'react'
-import { useStore, type DropData } from '../../lib/store'
+import { useState, useEffect } from 'react'
+
+export interface ApiDropData {
+  merch_id: number;
+  title: string;
+  image_url: string;
+  price_credits: number;
+  rarity: 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
+  available_stock: number;
+  required_tier: 'PHANTOM' | 'SQUIRE' | 'KNIGHT' | 'LORD' | 'SOVEREIGN';
+}
 
 export function AdminDropsPage() {
-  const { drops, deleteDrop, addDrop } = useStore()
+  const [apiDrops, setApiDrops] = useState<ApiDropData[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   
-  const [newDrop, setNewDrop] = useState<Partial<DropData>>({
+  const [newDrop, setNewDrop] = useState<Partial<ApiDropData>>({
     title: '',
-    price: 5000,
-    image: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&q=80',
+    price_credits: 5000,
+    image_url: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&q=80',
     rarity: 'RARE',
-    stock: 100,
-    reqTier: 'SQUIRE'
+    available_stock: 100,
+    required_tier: 'SQUIRE'
   })
 
-  const handleAdd = (e: React.FormEvent) => {
+  const fetchDrops = async () => {
+    setIsLoading(true)
+    try {
+      const token = localStorage.getItem('vortex.auth.token') || localStorage.getItem('auth_token')
+      const res = await fetch('/api/admin/merchandise', {
+        headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const json = await res.json()
+        if (json.status === 'success') {
+          setApiDrops(json.data)
+        }
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchDrops()
+  }, [])
+
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newDrop.title || !newDrop.image) return
+    if (!newDrop.title || !newDrop.image_url) return
     
-    addDrop({
-      ...newDrop as DropData,
-      id: `drop-${Date.now()}`
-    })
-    setShowModal(false)
-    setNewDrop({
-      title: '',
-      price: 5000,
-      image: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&q=80',
-      rarity: 'RARE',
-      stock: 100,
-      reqTier: 'SQUIRE'
-    })
+    try {
+      const token = localStorage.getItem('vortex.auth.token') || localStorage.getItem('auth_token')
+      const res = await fetch('/api/admin/merchandise', {
+        method: 'POST',
+        headers: { 
+          'Accept': 'application/json', 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify(newDrop)
+      })
+
+      if (res.ok) {
+        await fetchDrops()
+        setShowModal(false)
+        setNewDrop({
+          title: '',
+          price_credits: 5000,
+          image_url: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&q=80',
+          rarity: 'RARE',
+          available_stock: 100,
+          required_tier: 'SQUIRE'
+        })
+      } else {
+        alert('Validation error')
+      }
+    } catch (err) {
+      alert('Network error')
+    }
+  }
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this merchandise item?')) return
+
+    try {
+      const token = localStorage.getItem('vortex.auth.token') || localStorage.getItem('auth_token')
+      const res = await fetch(`/api/admin/merchandise/${id}`, {
+        method: 'DELETE',
+        headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }
+      })
+
+      if (res.ok) {
+        await fetchDrops()
+      } else {
+        alert('Could not delete item')
+      }
+    } catch (err) {
+      alert('Network error')
+    }
   }
 
   return (
@@ -38,7 +108,10 @@ export function AdminDropsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-4xl font-semibold text-white tracking-tight drop-shadow-md">Merchandise Intel</h1>
-          <p className="text-sm font-medium text-white/50 mt-1.5">Manage exclusive Drops and Inventory</p>
+          <p className="text-sm font-medium text-white/50 mt-1.5 flex items-center gap-2">
+            Manage exclusive Drops and Inventory
+            {isLoading && <span className="text-indigo-400 animate-pulse">(Connecting...)</span>}
+          </p>
         </div>
         <button 
           onClick={() => setShowModal(true)}
@@ -64,14 +137,21 @@ export function AdminDropsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.05]">
-            {drops.map((item) => (
-              <tr key={item.id} className="hover:bg-white/[0.03] transition-colors duration-300 group">
+            {apiDrops.map((item) => (
+              <tr key={item.merch_id} className="hover:bg-white/[0.03] transition-colors duration-300 group">
                 <td className="p-5">
-                  <div className="w-12 h-12 rounded-xl border border-white/[0.1] overflow-hidden shadow-inner">
-                    <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                  <div className="w-12 h-12 rounded-xl border border-white/[0.1] overflow-hidden shadow-inner flex items-center justify-center bg-black/20">
+                    {item.image_url ? (
+                      <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="material-symbols-outlined text-white/20">image</span>
+                    )}
                   </div>
                 </td>
-                <td className="p-5 font-semibold text-sm text-white/90">{item.title}</td>
+                <td className="p-5">
+                  <div className="font-semibold text-sm text-white/90">{item.title}</div>
+                  <div className="text-[10px] text-zinc-500 font-mono mt-1">Req: {item.required_tier || 'None'}</div>
+                </td>
                 <td className="p-5">
                   <span className={`inline-flex px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full border backdrop-blur-md shadow-sm ${
                     item.rarity === 'LEGENDARY' ? 'bg-amber-500/10 text-amber-300 border-amber-500/20 shadow-[0_0_15px_rgba(251,191,36,0.1)]' :
@@ -82,17 +162,22 @@ export function AdminDropsPage() {
                     {item.rarity}
                   </span>
                 </td>
-                <td className="p-5 font-mono text-sm font-medium text-white/60 tracking-wider whitespace-nowrap">{item.price.toLocaleString()}</td>
-                <td className="p-5 font-mono text-sm font-medium text-white/60 tracking-wider whitespace-nowrap">{item.stock} Units</td>
+                <td className="p-5 font-mono text-sm font-medium text-white/60 tracking-wider whitespace-nowrap">{Number(item.price_credits).toLocaleString()}</td>
+                <td className="p-5 font-mono text-sm font-medium text-white/60 tracking-wider whitespace-nowrap">{item.available_stock} Units</td>
                 <td className="p-5 text-right">
                   <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => deleteDrop(item.id)} className="text-zinc-500 hover:text-rose-400 p-1.5 transition-colors">
+                    <button onClick={() => handleDelete(item.merch_id)} className="text-zinc-500 hover:text-rose-400 p-1.5 transition-colors">
                       <span className="material-symbols-outlined text-[18px]">delete</span>
                     </button>
                   </div>
                 </td>
               </tr>
             ))}
+            {apiDrops.length === 0 && !isLoading && (
+              <tr>
+                <td colSpan={6} className="p-10 text-center text-white/30 text-sm">No merchandise found.</td>
+              </tr>
+            )}
             </tbody>
           </table>
         </div>
@@ -131,8 +216,8 @@ export function AdminDropsPage() {
                   <div className="space-y-2">
                     <label className="text-[11px] font-semibold text-white/40 uppercase tracking-widest pl-1">Req Tier</label>
                     <select 
-                      value={newDrop.reqTier} 
-                      onChange={e => setNewDrop({...newDrop, reqTier: e.target.value as any})}
+                      value={newDrop.required_tier} 
+                      onChange={e => setNewDrop({...newDrop, required_tier: e.target.value as any})}
                       className="w-full bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all duration-300 shadow-inner appearance-none"
                     >
                       <option value="PHANTOM" className="bg-zinc-900">PHANTOM</option>
@@ -149,7 +234,7 @@ export function AdminDropsPage() {
                     <input 
                       type="number" required 
                       min="0"
-                      value={newDrop.price} onChange={e => setNewDrop({...newDrop, price: parseInt(e.target.value)})}
+                      value={newDrop.price_credits} onChange={e => setNewDrop({...newDrop, price_credits: parseInt(e.target.value)})}
                       className="w-full bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all duration-300 shadow-inner" 
                     />
                   </div>
@@ -158,7 +243,7 @@ export function AdminDropsPage() {
                     <input 
                       type="number" required 
                       min="0"
-                      value={newDrop.stock} onChange={e => setNewDrop({...newDrop, stock: parseInt(e.target.value)})}
+                      value={newDrop.available_stock} onChange={e => setNewDrop({...newDrop, available_stock: parseInt(e.target.value)})}
                       className="w-full bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all duration-300 shadow-inner" 
                     />
                   </div>
@@ -167,7 +252,7 @@ export function AdminDropsPage() {
                   <label className="text-[11px] font-semibold text-white/40 uppercase tracking-widest pl-1">Image URL</label>
                   <input 
                     type="url" required 
-                    value={newDrop.image} onChange={e => setNewDrop({...newDrop, image: e.target.value})}
+                    value={newDrop.image_url} onChange={e => setNewDrop({...newDrop, image_url: e.target.value})}
                     className="w-full bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all duration-300 placeholder:text-white/20 shadow-inner" 
                   />
                 </div>

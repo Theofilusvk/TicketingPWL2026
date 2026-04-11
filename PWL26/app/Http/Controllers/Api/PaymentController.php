@@ -78,6 +78,9 @@ class PaymentController extends Controller
             // Call job to send email (both tickets and merchandise handled internally)
             SendTicketEmail::dispatch($order->order_id);
 
+            // Clear analytics cache so dashboards show fresh data
+            AnalyticsController::clearAnalyticsCache();
+
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;

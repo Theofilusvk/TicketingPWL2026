@@ -1,13 +1,49 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Navigate, Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../lib/auth'
-import { useStore } from '../../lib/store'
 
 export function AdminLayout() {
   const { user, isAuthenticated, logout } = useAuth()
-  const { events, orderHistory } = useStore()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [stats, setStats] = useState({ pending: 0, revenue: 0, events: 0 })
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const token = localStorage.getItem('vortex.auth.token') || localStorage.getItem('auth_token')
+        const headers = { Accept: 'application/json', Authorization: `Bearer ${token}` }
+        const [revRes, evRes] = await Promise.all([
+          fetch('/api/admin/analytics/revenue', { headers }),
+          fetch('/api/events')
+        ])
+        
+        let revenueAmount = 0
+        let orderCount = 0
+        let eventsCount = 0
+
+        if (revRes.ok) {
+          const rev = await revRes.json()
+          if (rev.status === 'success') {
+            revenueAmount = rev.data.summary.total_revenue
+            orderCount = rev.data.summary.total_orders
+          }
+        }
+        
+        if (evRes.ok) {
+          const ev = await evRes.json()
+          if (ev.data) {
+            eventsCount = ev.data.length
+          }
+        }
+
+        setStats({ pending: orderCount, revenue: revenueAmount, events: eventsCount })
+      } catch (err) {
+        // fail silently for layout stats
+      }
+    }
+    if (isAuthenticated) fetchStats()
+  }, [isAuthenticated])
 
   if (!isAuthenticated || !user?.isAdmin) {
     return <Navigate to="/login" replace />
@@ -28,6 +64,7 @@ export function AdminLayout() {
       title: 'Manage',
       items: [
         { to: '/admin/events', icon: 'stadium', label: 'Events' },
+        { to: '/admin/categories', icon: 'category', label: 'Categories' },
         { to: '/admin/venues', icon: 'map', label: 'Venues' },
         { to: '/admin/scanner', icon: 'document_scanner', label: 'Validation' },
         ...(!isOrganizer ? [
@@ -45,15 +82,10 @@ export function AdminLayout() {
     },
   ]
 
-  // Quick stats for sidebar
-  const pendingOrders = orderHistory.length + 5
-  const totalRevenue = orderHistory.reduce((acc, o) => acc + o.total, 145200)
-  const activeEvents = events.filter(e => e.status === 'ACTIVE').length
-
   const quickStats = [
-    { label: 'Pending', value: pendingOrders.toString(), icon: 'pending_actions', color: 'text-amber-400 bg-amber-500/10' },
-    { label: 'Revenue', value: `${Math.round(totalRevenue / 1000)}k`, icon: 'payments', color: 'text-indigo-400 bg-indigo-500/10' },
-    { label: 'Events', value: activeEvents.toString(), icon: 'event', color: 'text-emerald-400 bg-emerald-500/10' },
+    { label: 'Orders', value: stats.pending.toString(), icon: 'pending_actions', color: 'text-amber-400 bg-amber-500/10' },
+    { label: 'Revenue', value: `${Math.round(stats.revenue / 1000)}k`, icon: 'payments', color: 'text-indigo-400 bg-indigo-500/10' },
+    { label: 'Events', value: stats.events.toString(), icon: 'event', color: 'text-emerald-400 bg-emerald-500/10' },
   ]
 
   const SidebarContent = () => (
