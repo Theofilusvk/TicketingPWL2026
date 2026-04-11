@@ -17,20 +17,24 @@ class TicketEmail extends Mailable
     public $orderItems;
     public $tickets;
     public $pdfContent;
+    public $isMerchandise;
+    public $merchandiseOrders;
 
-    public function __construct($order, $user, $orderItems, $tickets, $pdfContent = null)
+    public function __construct($order, $user, $orderItems, $tickets, $pdfContent = null, $isMerchandise = false, $merchandiseOrders = null)
     {
         $this->order = $order;
         $this->user = $user;
         $this->orderItems = $orderItems;
         $this->tickets = $tickets;
         $this->pdfContent = $pdfContent;
+        $this->isMerchandise = $isMerchandise;
+        $this->merchandiseOrders = $merchandiseOrders;
     }
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'E-Ticket Konfirmasi - Vortex Systems',
+            subject: $this->isMerchandise ? 'Invoice Konfirmasi - Vortex Merchandise' : 'E-Ticket Konfirmasi - Vortex Systems',
         );
     }
 
@@ -50,7 +54,8 @@ class TicketEmail extends Mailable
     {
         $attachments = [];
         if ($this->pdfContent) {
-            $attachments[] = \Illuminate\Mail\Mailables\Attachment::fromData(fn () => $this->pdfContent, 'E-Ticket_Vortex.pdf')
+            $filename = $this->isMerchandise ? 'Invoice_ORD-' . $this->order->order_id . '.pdf' : 'E-Ticket_Vortex.pdf';
+            $attachments[] = \Illuminate\Mail\Mailables\Attachment::fromData(fn () => $this->pdfContent, $filename)
                     ->withMime('application/pdf');
         }
         return $attachments;

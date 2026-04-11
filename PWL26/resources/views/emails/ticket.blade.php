@@ -1,4 +1,26 @@
 <x-mail::message>
+@if(isset($isMerchandise) && $isMerchandise)
+# VORTEX SYSTEMS - MERCHANDISE INVOICE
+
+Hello **{{ $user->username }}**,
+
+Transaksi Merchandise Anda telah berhasil dibayar. Kami telah menerima pesanan untuk item berikut:
+
+### Rincian Pesanan:
+@foreach($merchandiseOrders as $item)
+- **Item:** {{ $item->title }}
+- **Kuantitas:** {{ $item->quantity }}
+@endforeach
+
+Barang Anda akan segera dikirim. Nomor Resi (Tracking Number) Anda adalah: 
+**{{ $merchandiseOrders->first() && $merchandiseOrders->first()->tracking_number ? $merchandiseOrders->first()->tracking_number : 'PENDING (Menunggu Pengiriman)' }}**
+
+Harap simpan email ini dan **unduh lampiran bukti Receipt/Invoice di bagian bawah email ini**.
+
+Terima kasih atas pembelian Anda, <br>
+*Vortex Merchandise Store*
+
+@else
 # VORTEX SYSTEMS - E-TICKET ISSUED
 
 Hello **{{ $user->username }}**,
@@ -33,4 +55,5 @@ Harap simpan email ini dan **unduh lampiran PDF (E-Ticket) di bagian bawah email
 
 Terima kasih, <br>
 *Vortex Ticketing System*
+@endif
 </x-mail::message>

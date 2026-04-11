@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers\Api;
 
@@ -24,32 +24,17 @@ class PaymentController extends Controller
             DB::table('orders')->where('order_id', $order->order_id)->update(['status' => 'paid']);
             DB::table('payments')->where('order_id', $order->order_id)->update(['status' => 'paid', 'payment_date' => now()]);
 
-            if ($order->event_id === null) {
-                // Merchandise Order
-                DB::table('merchandise_orders')->where('order_id', $order->order_id)->update(['status' => 'paid']);
-            } else {
-                // Event Ticket Order
-                // Generate Tickets
-                $orderItems = DB::table('order_items')->where('order_id', $order->order_id)->get();
-                foreach ($orderItems as $item) {
-                    $assignments = !empty($item->assignments) ? json_decode($item->assignments, true) : [];
-                    for ($i = 0; $i < $item->quantity; $i++) {
-                        $assignment = $assignments[$i] ?? [];
-                        $uniqueCode = 'TCK-' . strtoupper(\Illuminate\Support\Str::random(8));
-                        $qrPath = \App\Helpers\QrCodeGenerator::generateForTicket($uniqueCode, 'order_' . $order->order_id);
-                        
-                        DB::table('tickets')->insert([
-                            'order_item_id' => $item->order_item_id,
-                            'unique_code' => $uniqueCode,
-                            'qr_code_path' => $qrPath,
-                            'holder_name' => $assignment['name'] ?? null,
-                            'holder_email' => $assignment['email'] ?? null,
-                            'holder_identity' => $assignment['identity'] ?? null,
-                            'status' => 'available',
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ]);
-                    }
+            // Generate Tickets
+            $orderItems = DB::table('order_items')->where('order_id', $order->order_id)->get();
+            foreach ($orderItems as $item) {
+                for ($i = 0; $i < $item->quantity; $i++) {
+                    DB::table('tickets')->insert([
+                        'order_item_id' => $item->order_item_id,
+                        'unique_code' => 'TCK-' . strtoupper(Str::random(8)),
+                        'status' => 'available',
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
                 }
             }
 
@@ -75,7 +60,7 @@ class PaymentController extends Controller
 
             DB::commit();
 
-            // Call job to send email (both tickets and merchandise handled internally)
+            // Call job
             SendTicketEmail::dispatch($order->order_id);
 
         } catch (\Exception $e) {
@@ -101,7 +86,6 @@ class PaymentController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.phase' => 'nullable|string',
             'items.*.price' => 'nullable|numeric',
-            'items.*.assignments' => 'nullable|array',
             'payment_method' => 'nullable|string',
         ]);
 
@@ -115,22 +99,9 @@ class PaymentController extends Controller
             foreach ($validated['items'] as $item) {
                 // Try to map to the exact tier if provided, otherwise default to first available
                 $query = TicketType::lockForUpdate()->where('event_id', $item['event_id']);
-                $searchTerm = $item['phase'] ?? '';
-                
-                if ($searchTerm === 'PHASE_01') {
-                    $query->where(function($q) {
-                        $q->where('name', 'like', '%General%')->orWhere('name', 'like', '%Regular%');
-                    });
-                } else if ($searchTerm === 'PHASE_02') {
-                    $query->where('name', 'like', '%VIP%');
-                } else if ($searchTerm === 'ELITE') {
-                    $query->where(function($q) {
-                        $q->where('name', 'like', '%VVIP%')->orWhere('name', 'like', '%Premium%')->orWhere('name', 'like', '%Pass%');
-                    });
-                } else if (!empty($searchTerm)) {
-                    $query->where('name', 'like', '%' . $searchTerm . '%');
+                if (!empty($item['phase'])) {
+                    $query->where('name', 'like', '%' . $item['phase'] . '%');
                 }
-                
                 $ticketType = $query->first();
 
                 if (!$ticketType) {
@@ -166,7 +137,6 @@ class PaymentController extends Controller
                     'ticket_type_id' => $ticketType->ticket_type_id,
                     'quantity' => $item['quantity'],
                     'unit_price' => $unitPrice,
-                    'assignments' => $item['assignments'] ?? [],
                 ];
             }
 
@@ -194,7 +164,6 @@ class PaymentController extends Controller
                     'ticket_type_id' => $b['ticket_type_id'],
                     'quantity' => $b['quantity'],
                     'unit_price' => $b['unit_price'],
-                    'assignments' => json_encode($b['assignments']),
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -253,7 +222,7 @@ class PaymentController extends Controller
         $externalId = $request->input('external_id');
         $status = $request->input('status');
 
-        if ($status === 'PAID' || $status === 'SETTLED') {
+        if ($status === 'PAID') {
             try {
                 $order = DB::table('orders')->where('payment_reference', $externalId)->first();
                 if ($order && $order->status !== 'paid') {
@@ -282,7 +251,7 @@ class PaymentController extends Controller
                 
                 if (count($invoices) > 0) {
                     $inv = $invoices[0];
-                    if ($inv->getStatus() === 'PAID' || $inv->getStatus() === 'SETTLED') {
+                    if ($inv->getStatus() === 'PAID') {
                         $this->processSuccessfulPayment($order);
                         $order->status = 'paid'; // update memory state
                     }
@@ -293,48 +262,27 @@ class PaymentController extends Controller
             }
         }
 
-        $isMerchandise = false;
-        $itemsData = [];
-
-        if ($order->event_id === null) {
-            $isMerchandise = true;
-            $merchOrders = DB::table('merchandise_orders')
-                ->join('merchandise', 'merchandise_orders.merch_id', '=', 'merchandise.merch_id')
-                ->where('order_id', $orderId)
-                ->select('merchandise_orders.*', 'merchandise.title')
-                ->get();
+        $event = DB::table('events')->where('event_id', $order->event_id)->first();
+        
+        $orderItems = DB::table('order_items')
+            ->join('ticket_types', 'order_items.ticket_type_id', '=', 'ticket_types.ticket_type_id')
+            ->where('order_id', $orderId)
+            ->select('order_items.*', 'ticket_types.name as tier_name')
+            ->get();
             
-            foreach ($merchOrders as $m) {
-                $itemsData[] = [
-                    'id' => 'ITM-' . $m->merch_order_id,
-                    'eventName' => $m->title, // Reusing field name for UI compatibility
-                    'date' => explode(' ', $m->created_at)[0] ?? 'N/A',
-                    'tier' => 'MERCHANDISE', // Reusing field name for UI compatibility
-                    'quantity' => $m->quantity
-                ];
-            }
-        } else {
-            $event = DB::table('events')->where('event_id', $order->event_id)->first();
-            
-            $orderItems = DB::table('order_items')
-                ->join('ticket_types', 'order_items.ticket_type_id', '=', 'ticket_types.ticket_type_id')
-                ->where('order_id', $orderId)
-                ->select('order_items.*', 'ticket_types.name as tier_name')
-                ->get();
-                
-            $tickets = DB::table('tickets')
-                ->whereIn('order_item_id', $orderItems->pluck('order_item_id')->toArray())
-                ->get();
+        $tickets = DB::table('tickets')
+            ->whereIn('order_item_id', $orderItems->pluck('order_item_id')->toArray())
+            ->get();
 
-            foreach ($tickets as $t) {
-                $item = $orderItems->firstWhere('order_item_id', $t->order_item_id);
-                $itemsData[] = [
-                    'id' => $t->unique_code,
-                    'eventName' => $event ? $event->title : 'VORTEX EVENT',
-                    'date' => $event ? explode(' ', $event->start_time)[0] : 'TBA',
-                    'tier' => $item ? $item->tier_name : 'GENERAL'
-                ];
-            }
+        $ticketData = [];
+        foreach ($tickets as $t) {
+            $item = $orderItems->firstWhere('order_item_id', $t->order_item_id);
+            $ticketData[] = [
+                'id' => $t->unique_code,
+                'eventName' => $event ? $event->title : 'VORTEX EVENT',
+                'date' => $event ? explode(' ', $event->start_time)[0] : 'TBA',
+                'tier' => $item ? $item->tier_name : 'GENERAL'
+            ];
         }
 
         return response()->json([
@@ -342,115 +290,9 @@ class PaymentController extends Controller
             'data' => [
                 'orderId' => 'ORD-' . $order->order_id,
                 'total' => $order->total_price,
-                'tickets' => $itemsData, // Maps to tickets in UI
-                'isMerchandise' => $isMerchandise,
+                'tickets' => $ticketData,
                 'status' => $order->status
             ]
         ]);
-    }
-
-    /**
-     * Download the PDF e-ticket for a given order.
-     */
-    public function downloadPdf($id)
-    {
-        $order = Order::with(['event'])->find($id);
-        if (!$order) {
-            return response()->json(['status' => 'error', 'message' => 'Order not found'], 404);
-        }
-
-        $user = DB::table('users')->where('user_id', $order->user_id)->first();
-        
-        $isMerchandise = ($order->event_id === null);
-        $orderItems = collect();
-        $tickets = collect();
-        $merchandiseOrders = collect();
-
-        if ($isMerchandise) {
-            $merchandiseOrders = DB::table('merchandise_orders')
-                ->join('merchandise', 'merchandise_orders.merch_id', '=', 'merchandise.merch_id')
-                ->where('order_id', $order->order_id)
-                ->select('merchandise_orders.*', 'merchandise.title')
-                ->get();
-        } else {
-            $orderItems = DB::table('order_items')
-                ->join('ticket_types', 'order_items.ticket_type_id', '=', 'ticket_types.ticket_type_id')
-                ->where('order_items.order_id', $order->order_id)
-                ->select('order_items.*', 'ticket_types.name as ticket_name')
-                ->get();
-
-            $tickets = DB::table('tickets')
-                ->whereIn('order_item_id', $orderItems->pluck('order_item_id'))
-                ->get();
-        }
-
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.ticket', [
-            'order' => $order,
-            'user' => $user,
-            'orderItems' => $orderItems,
-            'tickets' => $tickets,
-            'isMerchandise' => $isMerchandise,
-            'merchandiseOrders' => $merchandiseOrders
-        ]);
-
-        return $pdf->download($isMerchandise ? 'invoice-ORD-' . $order->order_id . '.pdf' : 'e-ticket-ORD-' . $order->order_id . '.pdf');
-    }
-
-    /**
-     * Re-send the e-ticket email for a given order.
-     */
-    public function resendEmail(Request $request, $id)
-    {
-        $order = Order::find($id);
-        if (!$order) {
-            return response()->json(['status' => 'error', 'message' => 'Order not found'], 404);
-        }
-
-        // Optionally override the recipient email
-        $targetEmail = $request->input('email');
-
-        if ($targetEmail) {
-            // Send to a custom email address
-            $user = DB::table('users')->where('user_id', $order->user_id)->first();
-            
-            $isMerchandise = ($order->event_id === null);
-            $orderItems = collect();
-            $tickets = collect();
-            $merchandiseOrders = collect();
-
-            if ($isMerchandise) {
-                $merchandiseOrders = DB::table('merchandise_orders')
-                    ->join('merchandise', 'merchandise_orders.merch_id', '=', 'merchandise.merch_id')
-                    ->where('order_id', $order->order_id)
-                    ->select('merchandise_orders.*', 'merchandise.title')
-                    ->get();
-            } else {
-                $orderItems = DB::table('order_items')
-                    ->join('ticket_types', 'order_items.ticket_type_id', '=', 'ticket_types.ticket_type_id')
-                    ->where('order_items.order_id', $order->order_id)
-                    ->select('order_items.*', 'ticket_types.name as ticket_name')
-                    ->get();
-                $tickets = DB::table('tickets')
-                    ->whereIn('order_item_id', $orderItems->pluck('order_item_id'))
-                    ->get();
-            }
-
-            $pdfContent = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.ticket', [
-                'order' => $order,
-                'user' => $user,
-                'orderItems' => $orderItems,
-                'tickets' => $tickets,
-                'isMerchandise' => $isMerchandise,
-                'merchandiseOrders' => $merchandiseOrders
-            ])->output();
-
-            \Illuminate\Support\Facades\Mail::to($targetEmail)
-                ->send(new \App\Mail\TicketEmail($order, $user, $orderItems, $tickets, $pdfContent, $isMerchandise, $merchandiseOrders));
-        } else {
-            // Re-dispatch the original job (sends to user's registered email)
-            SendTicketEmail::dispatch($order->order_id);
-        }
-
-        return response()->json(['status' => 'success', 'message' => 'Email sent successfully']);
     }
 }

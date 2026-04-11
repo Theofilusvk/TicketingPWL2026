@@ -44,16 +44,29 @@ class SendTicketEmail implements ShouldQueue
             return;
         }
 
-        // Fetch tickets with QR path
-        $orderItems = DB::table('order_items')
-            ->join('ticket_types', 'order_items.ticket_type_id', '=', 'ticket_types.ticket_type_id')
-            ->where('order_items.order_id', $order->order_id)
-            ->select('order_items.*', 'ticket_types.name as ticket_name')
-            ->get();
-            
-        $tickets = DB::table('tickets')
-            ->whereIn('order_item_id', $orderItems->pluck('order_item_id'))
-            ->get();
+        $isMerchandise = ($order->event_id === null);
+        $orderItems = collect();
+        $tickets = collect();
+        $merchandiseOrders = collect();
+
+        if ($isMerchandise) {
+            $merchandiseOrders = DB::table('merchandise_orders')
+                ->join('merchandise', 'merchandise_orders.merch_id', '=', 'merchandise.merch_id')
+                ->where('order_id', $order->order_id)
+                ->select('merchandise_orders.*', 'merchandise.title')
+                ->get();
+        } else {
+            // Fetch tickets with QR path
+            $orderItems = DB::table('order_items')
+                ->join('ticket_types', 'order_items.ticket_type_id', '=', 'ticket_types.ticket_type_id')
+                ->where('order_items.order_id', $order->order_id)
+                ->select('order_items.*', 'ticket_types.name as ticket_name')
+                ->get();
+                
+            $tickets = DB::table('tickets')
+                ->whereIn('order_item_id', $orderItems->pluck('order_item_id'))
+                ->get();
+        }
 
         // Generate PDF
         try {
@@ -61,7 +74,9 @@ class SendTicketEmail implements ShouldQueue
                 'order' => $order,
                 'user' => $user,
                 'orderItems' => $orderItems,
-                'tickets' => $tickets
+                'tickets' => $tickets,
+                'isMerchandise' => $isMerchandise,
+                'merchandiseOrders' => $merchandiseOrders
             ])->output();
         } catch (\Exception $e) {
             Log::error("Failed to generate PDF for Order ID: {$this->orderId}. Error: " . $e->getMessage());
@@ -69,11 +84,21 @@ class SendTicketEmail implements ShouldQueue
         }
 
         try {
-            Log::info("Sending E-Ticket email for Order ID: {$this->orderId} to {$user->email}");
-            Mail::to($user->email)->send(new TicketEmail($order, $user, $orderItems, $tickets, $pdfContent));
-            Log::info("Successfully sent E-Ticket email for Order ID: {$this->orderId}");
+            if ($isMerchandise) {
+                Log::info("Sending Invoice email for Merchandise Order ID: {$this->orderId} to {$user->email}");
+            } else {
+                Log::info("Sending E-Ticket email for Event Order ID: {$this->orderId} to {$user->email}");
+            }
+            
+            Mail::to($user->email)->send(new TicketEmail($order, $user, $orderItems, $tickets, $pdfContent, $isMerchandise, $merchandiseOrders));
+            
+            if ($isMerchandise) {
+                Log::info("Successfully sent Invoice email for Merchandise Order ID: {$this->orderId}");
+            } else {
+                Log::info("Successfully sent E-Ticket email for Event Order ID: {$this->orderId}");
+            }
         } catch (\Exception $e) {
-            Log::error("Failed to send E-Ticket email for Order ID: {$this->orderId}. Error: " . $e->getMessage());
+            Log::error("Failed to send email for Order ID: {$this->orderId}. Error: " . $e->getMessage());
             throw $e; // Trigger retry
         }
     }

@@ -5,7 +5,7 @@ import { useStore } from '../../lib/store'
 
 export function AdminLayout() {
   const { user, isAuthenticated, logout } = useAuth()
-  const { events, orderHistory, ownedTickets, users } = useStore()
+  const { events, orderHistory } = useStore()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 

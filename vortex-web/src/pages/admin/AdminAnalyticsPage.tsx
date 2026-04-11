@@ -104,7 +104,6 @@ export function AdminAnalyticsPage() {
     )
   }
 
-  const COLORS = ['#818cf8', '#38bdf8', '#34d399', '#fbbf24', '#f472b6', '#a78bfa', '#fb923c', '#94a3b8']
   const PIE_COLORS = ['#818cf8', '#1e293b']
   const LINE_COLORS = ['#818cf8', '#38bdf8', '#34d399', '#fbbf24', '#f472b6']
 

@@ -15,7 +15,7 @@ const REPORT_TABS: { key: ReportType; label: string; icon: string; description: 
 ]
 
 export function AdminReportsPage() {
-  const { events, orderHistory, ownedTickets } = useStore()
+  const { events, orderHistory } = useStore()
 
   const [activeReport, setActiveReport] = useState<ReportType>('transaction')
   const [dateFrom, setDateFrom] = useState('')

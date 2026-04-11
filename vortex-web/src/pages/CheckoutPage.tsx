@@ -200,6 +200,12 @@ export function CheckoutPage() {
           throw new Error(result.message || `Merchandise checkout failed (${response.status})`);
         }
 
+        if (result.invoice_url) {
+           sessionStorage.setItem('vortex_checkout_pending_items', JSON.stringify(checkoutItems.map(i => i.id)));
+           window.location.href = result.invoice_url;
+           return;
+        }
+
         const earnedCredits = result.data.earned_credits || 0;
         
         setIsSuccess(true);

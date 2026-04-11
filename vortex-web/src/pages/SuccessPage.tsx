@@ -180,11 +180,12 @@ export function SuccessPage() {
       }
   }, [urlOrderId, isFetching]);
 
-  const orderData = fetchedOrder || location.state || {
-     orderId: 'VTX-99281-XC',
-     total: 249.00,
-     tickets: [{
-       id: 'VTX-99281-XC-1',
+  const rawState = location.state || {};
+  const orderData = fetchedOrder || {
+     ...rawState,
+     orderId: rawState.orderId || 'VTX-99281-XC',
+     total: rawState.total || 249.00,
+     tickets: rawState.tickets || (rawState.items ? rawState.items.map((i: any) => ({ ...i, eventName: i.title, date: 'N/A', tier: 'MERCHANDISE', id: i.id || 'MERCH-ITEM' })) : null) || [{
        eventName: 'NEON CHAOS 2025',
        date: '08.12.25',
        tier: 'VIP TIER'
@@ -286,18 +287,26 @@ export function SuccessPage() {
                  </div>
                </div>
 
-               {/* INSTANT QR CODE REVEAL */}
-               <div className="border border-primary/30 p-4 bg-white/5 flex flex-col items-center">
-                 <p className="font-accent text-[8px] text-primary mb-3 tracking-widest uppercase">/ ACCESS_QR_CODE</p>
-                 <div className="bg-white p-2">
-                   <img 
-                     src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${ticket.id}`} 
-                     alt="TICKET QR" 
-                     className="mix-blend-multiply"
-                   />
+               {/* INSTANT QR CODE REVEAL OR MERCHANDISE TRACKING */}
+               {!orderData.isMerchandise ? (
+                 <div className="border border-primary/30 p-4 bg-white/5 flex flex-col items-center">
+                   <p className="font-accent text-[8px] text-primary mb-3 tracking-widest uppercase">/ ACCESS_QR_CODE</p>
+                   <div className="bg-white p-2">
+                     <img 
+                       src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${ticket.id}`} 
+                       alt="TICKET QR" 
+                       className="mix-blend-multiply"
+                     />
+                   </div>
+                   <p className="font-mono text-[8px] text-zinc-500 mt-2">SECURE SIGNATURE</p>
                  </div>
-                 <p className="font-mono text-[8px] text-zinc-500 mt-2">SECURE SIGNATURE</p>
-               </div>
+               ) : (
+                 <div className="border border-hot-coral/30 p-4 bg-white/5 flex flex-col items-center justify-center min-w-[150px]">
+                   <span className="material-symbols-outlined text-4xl text-hot-coral mb-3">local_shipping</span>
+                   <p className="font-accent text-[10px] text-hot-coral font-bold tracking-widest uppercase text-center">SHIPPING<br/>PENDING</p>
+                   <p className="font-mono text-[8px] text-zinc-500 mt-2 text-center">TRACKING NUMBER<br/>WILL BE EMAILED</p>
+                 </div>
+               )}
                
              </div>
           ))}
@@ -345,7 +354,7 @@ export function SuccessPage() {
                   const url = window.URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
-                  a.download = `e-ticket-ORD-${urlOrderId}.pdf`;
+                  a.download = (!orderData || !orderData.isMerchandise) ? `e-ticket-ORD-${urlOrderId}.pdf` : `invoice-ORD-${urlOrderId}.pdf`;
                   document.body.appendChild(a);
                   a.click();
                   a.remove();
@@ -355,9 +364,13 @@ export function SuccessPage() {
               }}
               className="flex items-center gap-4 p-5 border border-white/10 hover:border-hot-coral/50 hover:bg-hot-coral/5 transition-all group bg-black/40 hover:shadow-[0_0_20px_rgba(255,77,77,0.05)] text-left"
             >
-              <span className="material-symbols-outlined text-hot-coral text-xl group-hover:scale-110 transition-transform">qr_code_2</span>
+              <span className="material-symbols-outlined text-hot-coral text-xl group-hover:scale-110 transition-transform">
+                {(!orderData || !orderData.isMerchandise) ? 'qr_code_2' : 'receipt_long'}
+              </span>
               <div className="text-left flex flex-col">
-                <span className="font-display text-xl text-white group-hover:text-hot-coral transition-colors tracking-wide">DOWNLOAD QR</span>
+                <span className="font-display text-xl text-white group-hover:text-hot-coral transition-colors tracking-wide">
+                  {(!orderData || !orderData.isMerchandise) ? 'DOWNLOAD QR' : 'DOWNLOAD INVOICE'}
+                </span>
                 <span className="font-accent text-[8px] text-zinc-500 tracking-widest uppercase">PDF_EXPORT</span>
               </div>
             </button>
