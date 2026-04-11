@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { useLocation, Link } from 'react-router-dom'
 import { ShareButton } from '../components/ShareButton'
 import { EmailModal } from '../components/EmailModal'
 import { useAudio } from '../lib/audio'
@@ -54,7 +54,7 @@ function ConfettiCanvas() {
         alive = true
         p.x += p.dx
         p.y += p.dy
-        p.dy += 0.15 // gravity
+        p.dy += 0.15 
         p.rot += p.dRot
         p.alpha -= p.decay
         ctx.save()
@@ -119,10 +119,20 @@ function AnimatedCheck() {
 
 export function SuccessPage() {
   const { playSuccessSound } = useAudio()
+  const location = useLocation()
   const [stage, setStage] = useState(0)
   const [showEmailModal, setShowEmailModal] = useState(false)
 
-  // Staggered reveal
+  const orderData = location.state || {
+     orderId: 'VTX-99281-XC',
+     total: 249.00,
+     tickets: [{
+       id: 'VTX-99281-XC-1',
+       eventName: 'NEON CHAOS 2025',
+       date: '08.12.25',
+       tier: 'VIP TIER'
+     }]
+  }
   useEffect(() => {
     playSuccessSound()
     const timers = [
@@ -159,56 +169,77 @@ export function SuccessPage() {
           </p>
         </div>
 
-        {/* Order Confirmation Card */}
-        <div className={`w-full p-8 md:p-12 mb-16 overflow-hidden bg-black/40 border border-t-primary border-r-hot-coral border-b-hot-coral border-l-primary shadow-[0_0_40px_rgba(203,255,0,0.05)] ${staggerClass(2)}`}>
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-8 relative items-center">
-            <div className="flex flex-col gap-8">
-              <div>
-                <p className="font-accent text-primary/60 text-[10px] uppercase tracking-widest mb-1">
-                  EVENT_ID
-                </p>
-                <h2 className="font-display text-4xl text-white tracking-wide">NEON CHAOS <span className="text-zinc-400">2025</span></h2>
-              </div>
-              <div className="flex gap-12">
-                <div>
-                  <p className="font-accent text-primary/60 text-[10px] uppercase tracking-widest mb-1">
-                    DATE
-                  </p>
-                  <p className="font-mono tracking-widest text-sm text-white">08.12.25</p>
-                </div>
-                <div>
-                  <p className="font-accent text-primary/60 text-[10px] uppercase tracking-widest mb-1">
-                    ACCESS
-                  </p>
-                  <p className="font-mono tracking-widest text-sm text-white">VIP_TIER</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="hidden md:block w-px h-full bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+        {/* Dynamic Tickets Display */}
+        <div className={`w-full mb-16 flex flex-col gap-8 ${staggerClass(2)}`}>
+          {orderData.tickets.map((ticket: any, index: number) => (
+             <div key={ticket.id} className="w-full p-8 md:p-12 overflow-hidden bg-black/40 border border-t-primary border-r-hot-coral border-b-hot-coral border-l-primary shadow-[0_0_40px_rgba(203,255,0,0.05)] relative flex flex-col md:flex-row gap-8 items-center">
+               
+               <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-8 items-center w-full">
+                 <div className="flex flex-col gap-8">
+                   <div>
+                     <p className="font-accent text-primary/60 text-[10px] uppercase tracking-widest mb-1">
+                       EVENT_NAME
+                     </p>
+                     <h2 className="font-display text-4xl text-white tracking-wide">{ticket.eventName}</h2>
+                   </div>
+                   <div className="flex gap-12">
+                     <div>
+                       <p className="font-accent text-primary/60 text-[10px] uppercase tracking-widest mb-1">
+                         DATE
+                       </p>
+                       <p className="font-mono tracking-widest text-sm text-white">{ticket.date}</p>
+                     </div>
+                     <div>
+                       <p className="font-accent text-primary/60 text-[10px] uppercase tracking-widest mb-1">
+                         ACCESS TIER
+                       </p>
+                       <p className="font-mono tracking-widest text-sm text-white">{ticket.tier}</p>
+                     </div>
+                   </div>
+                 </div>
+                 
+                 <div className="hidden md:block w-px h-full bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+     
+                 <div className="flex flex-col gap-8 h-full justify-between">
+                   <div className="flex justify-between items-start gap-8">
+                     <div>
+                       <p className="font-accent text-primary/60 text-[10px] uppercase tracking-widest mb-1">
+                         ORDER / TICKET ID
+                       </p>
+                       <p className="font-mono tracking-widest text-sm text-hot-coral">#{ticket.id}</p>
+                     </div>
+                     <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center border border-primary/40">
+                       <span className="material-symbols-outlined text-2xl text-primary">verified</span>
+                     </div>
+                   </div>
+                   {index === 0 && (
+                     <div>
+                       <p className="font-accent text-primary/60 text-[10px] uppercase tracking-widest mb-1">
+                         TOTAL_ORDER_PAID
+                       </p>
+                       <p className="font-mono tracking-widest text-white text-3xl font-bold">${orderData.total.toFixed(2)}</p>
+                     </div>
+                   )}
+                 </div>
+               </div>
 
-            <div className="flex flex-col gap-8 h-full justify-between">
-              <div className="flex justify-between items-start gap-8">
-                <div>
-                  <p className="font-accent text-primary/60 text-[10px] uppercase tracking-widest mb-1">
-                    ORDER_NUMBER
-                  </p>
-                  <p className="font-mono tracking-widest text-sm text-hot-coral">#VTX-99281-XC</p>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center border border-primary/40">
-                  <span className="material-symbols-outlined text-2xl text-primary">verified</span>
-                </div>
-              </div>
-              <div>
-                <p className="font-accent text-primary/60 text-[10px] uppercase tracking-widest mb-1">
-                  TOTAL_PAID
-                </p>
-                <p className="font-mono tracking-widest text-white text-3xl font-bold">$249.00 <span className="text-xl">USD</span></p>
-              </div>
-            </div>
-          </div>
+               {/* INSTANT QR CODE REVEAL */}
+               <div className="border border-primary/30 p-4 bg-white/5 flex flex-col items-center">
+                 <p className="font-accent text-[8px] text-primary mb-3 tracking-widest uppercase">/ ACCESS_QR_CODE</p>
+                 <div className="bg-white p-2">
+                   <img 
+                     src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${ticket.id}`} 
+                     alt="TICKET QR" 
+                     className="mix-blend-multiply"
+                   />
+                 </div>
+                 <p className="font-mono text-[8px] text-zinc-500 mt-2">SECURE SIGNATURE</p>
+               </div>
+               
+             </div>
+          ))}
 
-          <div className="mt-12 pt-6 border-t border-white/5 flex justify-between items-center">
+          <div className="pt-6 border-t border-white/5 flex justify-between items-center w-full px-4">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
               <span className="font-mono text-[8px] text-zinc-500 uppercase tracking-widest">SECURED VIA VORTEX PROTOCOL</span>

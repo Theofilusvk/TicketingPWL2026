@@ -1,134 +1,405 @@
-import { useState } from 'react'
-import { useStore, type NewsData } from '../../lib/store'
+import React, { useState, useEffect } from 'react'
+import { Plus, X, Trash2, Edit2, Send } from 'lucide-react'
+
+interface News {
+  news_id: number
+  title: string
+  content: string
+  tag: string
+  urgency: string
+  image_url: string | null
+  is_published: boolean
+  published_at: string
+  author_id: number
+}
 
 export function AdminNewsPage() {
-  const { news, deleteNews, addNews } = useStore()
+  const [newsList, setNewsList] = useState<News[]>([])
+  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
-  
-  const [newArticle, setNewArticle] = useState<Partial<NewsData>>({
+  const [editingNews, setEditingNews] = useState<News | null>(null)
+  const [filter, setFilter] = useState('all')
+  const token = localStorage.getItem('vortex.auth.token')
+
+  const [formData, setFormData] = useState({
     title: '',
-    date: new Date().toISOString().split('T')[0],
-    tag: 'UPDATE',
-    tagColor: 'bg-primary text-black',
-    content: ''
+    content: '',
+    tag: 'SYSTEM',
+    urgency: 'NORMAL',
+    image_url: '',
+    is_published: true,
   })
 
-  const handleAdd = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newArticle.title || !newArticle.content) return
-    
-    addNews({
-      ...newArticle as NewsData,
-      id: `news-${Date.now()}`
-    })
-    setShowModal(false)
-    setNewArticle({
-      title: '',
-      date: new Date().toISOString().split('T')[0],
-      tag: 'UPDATE',
-      tagColor: 'bg-primary text-black',
-      content: ''
-    })
+  const tags = ['SYSTEM', 'SECURITY', 'LINEUP', 'DROPS', 'UPDATE', 'BREAKING']
+  const urgencies = ['NORMAL', 'HIGH', 'CRITICAL']
+
+  useEffect(() => {
+    fetchNews()
+  }, [])
+
+  const fetchNews = async () => {
+    try {
+      const response = await fetch('/api/admin/news', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+      const data = await response.json()
+      setNewsList(data.data || data)
+    } catch (err) {
+      console.error('Failed to fetch news:', err)
+    } finally {
+      setLoading(false)
+    }
   }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    try {
+      const method = editingNews ? 'PUT' : 'POST'
+      const endpoint = editingNews
+        ? `/api/admin/news/${editingNews.news_id}/update`
+        : '/api/admin/news/create'
+
+      const response = await fetch(endpoint, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...formData,
+          published_at: new Date().toISOString(),
+        }),
+      })
+
+      if (response.ok) {
+        fetchNews()
+        setShowModal(false)
+        resetForm()
+      }
+    } catch (err) {
+      console.error('Failed to save news:', err)
+    }
+  }
+
+  const handleDelete = async (newsId: number) => {
+    if (!window.confirm('Delete this news article?')) return
+
+    try {
+      const response = await fetch(`/api/admin/news/${newsId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+
+      if (response.ok) {
+        fetchNews()
+      }
+    } catch (err) {
+      console.error('Failed to delete news:', err)
+    }
+  }
+
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      content: '',
+      tag: 'SYSTEM',
+      urgency: 'NORMAL',
+      image_url: '',
+      is_published: true,
+    })
+    setEditingNews(null)
+  }
+
+  const getTagColor = (tag: string): string => {
+    const colors: Record<string, string> = {
+      'SECURITY': 'bg-red-900/50 text-red-300 border-red-700',
+      'LINEUP': 'bg-purple-900/50 text-purple-300 border-purple-700',
+      'DROPS': 'bg-yellow-900/50 text-yellow-300 border-yellow-700',
+      'UPDATE': 'bg-blue-900/50 text-blue-300 border-blue-700',
+      'BREAKING': 'bg-hot-coral/30 text-primary border-primary',
+      'SYSTEM': 'bg-primary/30 text-primary border-primary',
+    }
+    return colors[tag] || 'bg-zinc-700/50 text-zinc-300 border-zinc-600'
+  }
+
+  const getUrgencyColor = (urgency: string): string => {
+    const colors: Record<string, string> = {
+      'CRITICAL': 'bg-red-900/50 text-red-300 border-red-700',
+      'HIGH': 'bg-yellow-900/50 text-yellow-300 border-yellow-700',
+      'NORMAL': 'bg-blue-900/50 text-blue-300 border-blue-700',
+    }
+    return colors[urgency] || 'bg-zinc-700/50'
+  }
+
+  const filteredNews = newsList.filter(n => {
+    if (filter === 'all') return true
+    if (filter === 'published') return n.is_published
+    if (filter === 'draft') return !n.is_published
+    return true
+  })
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-700 ease-out transition-all z-10 relative">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-semibold text-white tracking-tight drop-shadow-md">Broadcast Center</h1>
-          <p className="text-sm font-medium text-white/50 mt-1.5">Manage global news feeds and system announcements</p>
+          <h1 className="text-4xl font-semibold text-white tracking-tight drop-shadow-md">
+            Broadcast Center
+          </h1>
+          <p className="text-sm font-medium text-white/50 mt-1.5">
+            Manage global news feeds and system announcements
+          </p>
         </div>
-        <button 
-          onClick={() => setShowModal(true)}
-          className="bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-md text-white font-semibold tracking-wide text-sm px-6 py-3 rounded-2xl transition-all duration-300 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] hover:shadow-[0_8px_32px_-8px_rgba(255,255,255,0.1)] active:scale-95 flex items-center justify-center gap-2 group"
+        <button
+          onClick={() => {
+            resetForm()
+            setShowModal(true)
+          }}
+          className="bg-primary/20 hover:bg-primary/30 border border-primary text-primary font-semibold tracking-wide text-sm px-6 py-3 rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 group"
         >
-          <span className="material-symbols-outlined text-[20px] group-hover:rotate-90 transition-transform duration-300">add_comment</span>
-          New Broadcast
+          <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+          New Article
         </button>
       </div>
 
-      <div className="bg-white/[0.02] backdrop-blur-[40px] border border-white/[0.08] rounded-[32px] overflow-hidden shadow-[4px_12px_40px_-12px_rgba(0,0,0,0.3)] relative">
-        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-white/[0.05]">
-                <th className="p-5 text-[11px] font-semibold text-white/40 uppercase tracking-widest whitespace-nowrap">Date</th>
-                <th className="p-5 text-[11px] font-semibold text-white/40 uppercase tracking-widest whitespace-nowrap">Classification</th>
-                <th className="p-5 text-[11px] font-semibold text-white/40 uppercase tracking-widest whitespace-nowrap">Headline</th>
-                <th className="p-5 text-[11px] font-semibold text-white/40 uppercase tracking-widest text-right whitespace-nowrap">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/[0.05]">
-            {news.map((item) => (
-              <tr key={item.id} className="hover:bg-white/[0.03] transition-colors duration-300 group">
-                <td className="p-5 font-mono text-sm font-medium text-white/60 tracking-wider whitespace-nowrap">{item.date}</td>
-                <td className="p-5">
-                  <span className={`inline-flex px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full border backdrop-blur-md shadow-sm ${
-                    item.tag === 'URGENT' || item.tag === 'BREAKING' ? 'bg-rose-500/10 text-rose-300 border-rose-500/20 shadow-[0_0_15px_rgba(251,113,133,0.1)]' :
-                    item.tag === 'NEW_DROP' ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20 shadow-[0_0_15px_rgba(99,102,241,0.1)]' :
-                    'bg-emerald-500/10 text-emerald-300 border-emerald-500/20 shadow-[0_0_15px_rgba(52,211,153,0.1)]'
-                  }`}>
-                    {item.tag}
-                  </span>
-                </td>
-                <td className="p-5 font-semibold text-sm text-white/90">{item.title}</td>
-                <td className="p-5 text-right">
-                  <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => deleteNews(item.id)} className="text-zinc-500 hover:text-rose-400 p-1.5 transition-colors">
-                      <span className="material-symbols-outlined text-[18px]">delete</span>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            </tbody>
-          </table>
-        </div>
+      {/* Filter Tabs */}
+      <div className="flex gap-2">
+        {[
+          { value: 'all', label: 'All' },
+          { value: 'published', label: 'Published' },
+          { value: 'draft', label: 'Drafts' },
+        ].map(tab => (
+          <button
+            key={tab.value}
+            onClick={() => setFilter(tab.value)}
+            className={`px-4 py-2 rounded-lg font-accent text-xs uppercase tracking-wider transition-all ${
+              filter === tab.value
+                ? 'bg-primary text-black'
+                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
+      {/* News List */}
+      <div className="bg-white/[0.02] backdrop-blur-[40px] border border-white/[0.08] rounded-[32px] overflow-hidden shadow-[4px_12px_40px_-12px_rgba(0,0,0,0.3)]">
+        {loading ? (
+          <div className="p-8 text-center text-zinc-400">Loading...</div>
+        ) : filteredNews.length === 0 ? (
+          <div className="p-8 text-center text-zinc-400">No news articles</div>
+        ) : (
+          <div className="divide-y divide-white/[0.05]">
+            {filteredNews.map(article => (
+              <div
+                key={article.news_id}
+                className="p-6 hover:bg-white/[0.05] transition-colors duration-300 group flex items-start justify-between"
+              >
+                <div className="flex items-start gap-4 flex-1">
+                  {article.image_url && (
+                    <img
+                      src={article.image_url}
+                      alt="article"
+                      className="w-16 h-16 rounded border border-white/10 object-cover"
+                    />
+                  )}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <h3 className="font-display text-lg text-white">{article.title}</h3>
+                      <span className={`text-xs font-bold px-2 py-1 rounded border ${getTagColor(article.tag)}`}>
+                        {article.tag}
+                      </span>
+                      {article.urgency !== 'NORMAL' && (
+                        <span className={`text-xs font-bold px-2 py-1 rounded border ${getUrgencyColor(article.urgency)}`}>
+                          {article.urgency}
+                        </span>
+                      )}
+                      {!article.is_published && (
+                        <span className="text-xs bg-zinc-700 text-zinc-300 px-2 py-1 rounded">DRAFT</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-zinc-400 line-clamp-2">{article.content}</p>
+                    <div className="text-xs text-zinc-500 mt-2">
+                      {new Date(article.published_at).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity ml-4">
+                  <button
+                    onClick={() => {
+                      setEditingNews(article)
+                      setFormData({
+                        title: article.title,
+                        content: article.content,
+                        tag: article.tag,
+                        urgency: article.urgency,
+                        image_url: article.image_url || '',
+                        is_published: article.is_published,
+                      })
+                      setShowModal(true)
+                    }}
+                    className="p-2 hover:bg-zinc-700 rounded transition-colors"
+                  >
+                    <Edit2 className="w-4 h-4 text-zinc-400" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(article.news_id)}
+                    className="p-2 hover:bg-red-900/30 rounded transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4 text-red-400" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Create/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-all duration-500">
-          <div className="bg-black/60 backdrop-blur-[60px] border border-white/[0.15] rounded-[32px] w-full max-w-md p-8 shadow-[0_24px_80px_rgba(0,0,0,0.6)] animate-in zoom-in-95 duration-300 ease-out relative overflow-hidden">
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-            
-            <h2 className="text-2xl font-semibold text-white mb-8 tracking-tight drop-shadow-sm">Initialize Broadcast</h2>
-            <form onSubmit={handleAdd} className="space-y-5">
-              <div className="space-y-2">
-                <label className="text-[11px] font-semibold text-white/40 uppercase tracking-widest pl-1">Headline</label>
-                <input 
-                  type="text" required 
-                  value={newArticle.title} onChange={e => setNewArticle({...newArticle, title: e.target.value})}
-                  className="w-full bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all duration-300 placeholder:text-white/20 shadow-inner" 
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[11px] font-semibold text-white/40 uppercase tracking-widest pl-1">Classification (Tag)</label>
-                <select 
-                  value={newArticle.tag} 
-                  onChange={e => setNewArticle({...newArticle, tag: e.target.value})}
-                  className="w-full bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all duration-300 shadow-inner appearance-none"
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-black/60 backdrop-blur-[60px] border border-white/[0.15] rounded-[32px] w-full max-w-2xl shadow-[0_24px_80px_rgba(0,0,0,0.6)] animate-in zoom-in-95 duration-300 ease-out">
+            <div className="p-8 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-semibold text-white tracking-tight">
+                  {editingNews ? 'Edit Article' : 'Publish Article'}
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowModal(false)
+                    resetForm()
+                  }}
+                  className="text-zinc-400 hover:text-white transition-colors"
                 >
-                  <option value="UPDATE" className="bg-zinc-900">UPDATE</option>
-                  <option value="URGENT" className="bg-zinc-900">URGENT</option>
-                  <option value="BREAKING" className="bg-zinc-900">BREAKING</option>
-                  <option value="NEW_DROP" className="bg-zinc-900">NEW DROP</option>
-                </select>
+                  <X className="w-6 h-6" />
+                </button>
               </div>
-              <div className="space-y-2">
-                <label className="text-[11px] font-semibold text-white/40 uppercase tracking-widest pl-1">Transmission Content</label>
-                <textarea 
-                  required 
-                  rows={4}
-                  value={newArticle.content} onChange={e => setNewArticle({...newArticle, content: e.target.value})}
-                  className="w-full bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all duration-300 placeholder:text-white/20 shadow-inner resize-none" 
-                />
-              </div>
-              <div className="flex gap-4 pt-6 mt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-3.5 rounded-2xl border border-white/[0.1] text-sm font-semibold text-white/60 hover:text-white hover:bg-white/[0.03] transition-all duration-300">Cancel</button>
-                <button type="submit" className="flex-1 px-4 py-3.5 rounded-2xl bg-white text-black font-semibold text-sm hover:bg-white/90 shadow-[0_0_20px_rgba(255,255,255,0.4)] transition-all duration-300 active:scale-95">Transmit</button>
-              </div>
-            </form>
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Title */}
+                <div>
+                  <label className="block text-xs font-semibold text-white/60 uppercase tracking-widest mb-3">
+                    Headline
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={e => setFormData({ ...formData, title: e.target.value })}
+                    required
+                    maxLength={255}
+                    className="w-full bg-zinc-800/50 border border-zinc-700 text-white rounded px-3 py-2 font-mono text-sm placeholder-zinc-600 focus:border-primary outline-none transition-colors"
+                    placeholder="Article headline"
+                  />
+                </div>
+
+                {/* Content */}
+                <div>
+                  <label className="block text-xs font-semibold text-white/60 uppercase tracking-widest mb-3">
+                    Content
+                  </label>
+                  <textarea
+                    value={formData.content}
+                    onChange={e => setFormData({ ...formData, content: e.target.value })}
+                    required
+                    rows={5}
+                    className="w-full bg-zinc-800/50 border border-zinc-700 text-white rounded px-3 py-2 font-mono text-sm placeholder-zinc-600 focus:border-primary outline-none transition-colors resize-none"
+                    placeholder="Article content"
+                  />
+                </div>
+
+                {/* Tag and Urgency */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-white/60 uppercase tracking-widest mb-3">
+                      Tag
+                    </label>
+                    <select
+                      value={formData.tag}
+                      onChange={e => setFormData({ ...formData, tag: e.target.value })}
+                      className="w-full bg-zinc-800/50 border border-zinc-700 text-white rounded px-3 py-2 font-mono text-sm"
+                    >
+                      {tags.map(t => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-white/60 uppercase tracking-widest mb-3">
+                      Urgency
+                    </label>
+                    <select
+                      value={formData.urgency}
+                      onChange={e => setFormData({ ...formData, urgency: e.target.value })}
+                      className="w-full bg-zinc-800/50 border border-zinc-700 text-white rounded px-3 py-2 font-mono text-sm"
+                    >
+                      {urgencies.map(u => (
+                        <option key={u} value={u}>
+                          {u}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Image URL */}
+                <div>
+                  <label className="block text-xs font-semibold text-white/60 uppercase tracking-widest mb-3">
+                    Image URL (Optional)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={formData.image_url}
+                      onChange={e => setFormData({ ...formData, image_url: e.target.value })}
+                      className="flex-1 bg-zinc-800/50 border border-zinc-700 text-white rounded px-3 py-2 font-mono text-sm placeholder-zinc-600 focus:border-primary outline-none transition-colors"
+                      placeholder="https://..."
+                    />
+                    {formData.image_url && (
+                      <img
+                        src={formData.image_url}
+                        alt="preview"
+                        className="w-10 h-10 rounded border border-zinc-700 object-cover"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Publish Status */}
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_published}
+                    onChange={e => setFormData({ ...formData, is_published: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  <label className="text-sm text-white/80">Publish immediately</label>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowModal(false)
+                      resetForm()
+                    }}
+                    className="flex-1 px-4 py-3 rounded-2xl bg-zinc-800 text-white font-semibold text-sm hover:bg-zinc-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-3 rounded-2xl bg-primary text-black font-semibold text-sm hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Send className="w-4 h-4" />
+                    {editingNews ? 'Update' : 'Publish'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

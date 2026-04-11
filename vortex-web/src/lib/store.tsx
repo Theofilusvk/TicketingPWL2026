@@ -1,15 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
-export type EventCategory = string
-
-// Fallback categories used when API is unavailable
-export const DEFAULT_CATEGORIES: string[] = ['Musik', 'Festival', 'Konser', 'Workshop', 'Seminar', 'Olahraga', 'Seni', 'Lainnya']
-
-export type CategoryData = {
-  id: number
-  name: string
-  description?: string
-}
+export type EventCategory = 'Musik' | 'Festival' | 'Konser' | 'Workshop' | 'Seminar' | 'Olahraga' | 'Seni' | 'Lainnya'
+export const EVENT_CATEGORIES: EventCategory[] = ['Musik', 'Festival', 'Konser', 'Workshop', 'Seminar', 'Olahraga', 'Seni', 'Lainnya']
 
 export type CartItem = {
   id: string
@@ -51,7 +43,7 @@ export type EventData = {
   id: string
   name: string
   date: string
-  category: string
+  category: EventCategory
   status: 'ACTIVE' | 'DRAFT' | 'LOCKED' | 'COMPLETED'
   ticketsLeft: number
   capacity: number
@@ -99,7 +91,6 @@ type StoreContextValue = {
   ownedTickets: Ticket[]
   orderHistory: OrderHistoryItem[]
   events: EventData[]
-  categories: CategoryData[]
   drops: DropData[]
   news: NewsData[]
   users: UserAccount[]
@@ -113,7 +104,7 @@ type StoreContextValue = {
   deleteTicket: (ticketId: string) => void
   checkInTicket: (ticketId: string) => void
   addCredits: (amount: number) => void
-  
+
   // Admin CRUD Actions
   addEvent: (event: EventData) => void
   updateEvent: (id: string, updates: Partial<EventData>) => void
@@ -185,10 +176,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           return patched
         })
-        return { 
-          cart: parsed.cart || [], 
-          ownedTickets: parsed.ownedTickets || [], 
-          credits: parsed.credits || 0, 
+        return {
+          cart: parsed.cart || [],
+          ownedTickets: parsed.ownedTickets || [],
+          credits: parsed.credits || 0,
           orderHistory: parsed.orderHistory || [],
           events: migratedEvents,
           drops: parsed.drops || defaultDrops,
@@ -207,57 +198,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store))
   }, [store])
 
-  // Fetch categories from Laravel API
-  const [categories, setCategories] = useState<CategoryData[]>([])
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await fetch('http://127.0.0.1:8000/api/categories')
-        const result = await response.json()
-        if (result.data) {
-          const apiCategories: CategoryData[] = result.data.map((c: any) => ({
-            id: c.category_id,
-            name: c.name,
-            description: c.description || ''
-          }))
-          console.log('Database Categories Loaded:', apiCategories)
-          setCategories(apiCategories)
-        }
-      } catch (err) {
-        console.error('Failed to fetch categories from backend', err)
-      }
-    }
-    fetchCategories()
-  }, [])
-
-  // Fetch events from Laravel API
+  // Fetch from Laravel API
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await fetch('http://127.0.0.1:8000/api/events')
+        const response = await fetch('/api/events')
         const result = await response.json()
         if (result.data) {
           const apiEvents = result.data.map((e: any) => {
             const ticketTotalSupply = e.ticket_types ? e.ticket_types.reduce((sum: number, tt: any) => sum + Number(tt.available_stock), 0) : 0
             const mainPrice = e.ticket_types && e.ticket_types.length > 0 ? Number(e.ticket_types[0].price) : 0
-            
+
             let activeImage = 'https://images.unsplash.com/photo-1574391884720-bbc3740c59d1?auto=format&fit=crop&q=80';
             if (e.banner_url) {
-               activeImage = e.banner_url.startsWith('http') ? e.banner_url : (e.banner_url.startsWith('/') ? 'http://127.0.0.1:8000' + e.banner_url : 'http://127.0.0.1:8000/' + e.banner_url);
+              // Always use the banner_url as-is if it's an absolute URL, otherwise use relative path
+              activeImage = e.banner_url.startsWith('http') ? e.banner_url : e.banner_url;
             }
-
-            // Map category from the API response
-            const categoryName = e.category ? e.category.name : 'Lainnya'
 
             return {
               id: e.event_id.toString(),
               name: e.title,
               date: e.start_time ? e.start_time.split(' ')[0].replace(/-/g, '_') : 'TBA',
-              category: categoryName,
+              category: e.category ? e.category.name : 'Lainnya',
               status: e.status ? e.status.toUpperCase() : 'ACTIVE',
               ticketsLeft: ticketTotalSupply,
-              capacity: ticketTotalSupply > 0 ? ticketTotalSupply : 500,
+              capacity: ticketTotalSupply > 0 ? ticketTotalSupply : 500, // mock capacity
               venue: e.location || 'THE_FOUNDRY',
               price: mainPrice,
               image: activeImage,
@@ -265,8 +230,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               btnColor: 'bg-primary text-black'
             }
           })
-          
-          console.log('Database Events Loaded:', apiEvents)
+
+          console.log("Database Events Loaded:", apiEvents);
           setStore(prev => ({
             ...prev,
             events: apiEvents
@@ -276,7 +241,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         console.error('Failed to fetch events from backend', err)
       }
     }
-    
+
     fetchEvents()
   }, [])
 
@@ -395,7 +360,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<StoreContextValue>(() => ({
     ...store,
-    categories,
     tier,
     addToCart,
     removeFromCart,
@@ -417,7 +381,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     updateUserTier,
     updateUserBalance,
     deleteUser
-  }), [store, categories, tier])
+  }), [store, tier])
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
 }

@@ -31,7 +31,7 @@ export function ReservePage() {
     qty: number;
   } | null>(null)
   
-  const [assignmentData, setAssignmentData] = useState<{name: string, phone: string}[]>([])
+  const [assignmentData, setAssignmentData] = useState<{name: string, phone: string, email: string, identityNumber: string, dob: string}[]>([])
 
   const handleUpdateQuantity = (id: string, delta: number) => {
     setQuantities((prev) => ({
@@ -52,10 +52,10 @@ export function ReservePage() {
     }
 
     setPendingSelection({ tierId, title: itemTitle, phase, price, qty })
-    setAssignmentData(Array(qty).fill({ name: '', phone: '' }))
+    setAssignmentData(Array(qty).fill(null).map(() => ({ name: '', phone: '', email: '', identityNumber: '', dob: '' })))
   }
 
-  const handleAssignmentChange = (index: number, field: 'name' | 'phone', value: string) => {
+  const handleAssignmentChange = (index: number, field: 'name' | 'phone' | 'email' | 'identityNumber' | 'dob', value: string) => {
     setAssignmentData(prev => {
       const updated = [...prev]
       updated[index] = { ...updated[index], [field]: value }
@@ -67,8 +67,21 @@ export function ReservePage() {
     if (!pendingSelection) return
     
     // Validate all fields are somewhat filled
-    if (assignmentData.some(d => !d.name.trim() || !d.phone.trim())) {
-      alert("Please fill out all assignment fields to proceed.")
+    if (assignmentData.some(d => !d.name.trim() || !d.phone.trim() || !d.email.trim() || !d.identityNumber.trim() || !d.dob.trim())) {
+      alert("Harap isi semua field data pemegang tiket untuk melanjutkan.")
+      return
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (assignmentData.some(d => !emailRegex.test(d.email))) {
+      alert("Format email tidak valid. Periksa kembali.")
+      return
+    }
+
+    // NIK must be 16 digits
+    if (assignmentData.some(d => !/^\d{16}$/.test(d.identityNumber))) {
+      alert("NIK harus terdiri dari 16 digit angka.")
       return
     }
 
@@ -80,6 +93,9 @@ export function ReservePage() {
       price: pendingSelection.price,
       assignedName: data.name,
       assignedPhone: data.phone,
+      assignedEmail: data.email,
+      assignedIdentityNumber: data.identityNumber,
+      assignedDob: data.dob,
       ticketId: `#VX-${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`
     }))
 
@@ -331,26 +347,63 @@ export function ReservePage() {
                   <div className="flex flex-col gap-4">
                     <div>
                       <label className="block font-accent text-[10px] text-primary tracking-widest uppercase mb-1">
-                        HOLDER NAME
+                        NAMA LENGKAP
                       </label>
                       <input
                         type="text"
                         value={data.name}
                         onChange={(e) => handleAssignmentChange(idx, 'name', e.target.value)}
                         className="w-full bg-black/60 border border-zinc-700 text-white font-mono p-2 focus:outline-none focus:border-primary transition-colors focus:ring-1 focus:ring-primary"
-                        placeholder="e.g. SARA LYNN"
+                        placeholder="contoh: Budi Santoso"
                       />
                     </div>
                     <div>
                       <label className="block font-accent text-[10px] text-primary tracking-widest uppercase mb-1">
-                        CONTACT PROTOCOL
+                        EMAIL
                       </label>
                       <input
-                        type="text"
+                        type="email"
+                        value={data.email}
+                        onChange={(e) => handleAssignmentChange(idx, 'email', e.target.value)}
+                        className="w-full bg-black/60 border border-zinc-700 text-white font-mono p-2 focus:outline-none focus:border-primary transition-colors focus:ring-1 focus:ring-primary"
+                        placeholder="contoh: budi@email.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-accent text-[10px] text-primary tracking-widest uppercase mb-1">
+                        NO. TELEPON
+                      </label>
+                      <input
+                        type="tel"
                         value={data.phone}
                         onChange={(e) => handleAssignmentChange(idx, 'phone', e.target.value)}
                         className="w-full bg-black/60 border border-zinc-700 text-white font-mono p-2 focus:outline-none focus:border-primary transition-colors focus:ring-1 focus:ring-primary"
-                        placeholder="e.g. 555-0199"
+                        placeholder="contoh: 08123456789"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-accent text-[10px] text-primary tracking-widest uppercase mb-1">
+                        NIK / NO. KTP
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={16}
+                        value={data.identityNumber}
+                        onChange={(e) => handleAssignmentChange(idx, 'identityNumber', e.target.value.replace(/\D/g, ''))}
+                        className="w-full bg-black/60 border border-zinc-700 text-white font-mono p-2 focus:outline-none focus:border-primary transition-colors focus:ring-1 focus:ring-primary"
+                        placeholder="16 digit NIK"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-accent text-[10px] text-primary tracking-widest uppercase mb-1">
+                        TANGGAL LAHIR
+                      </label>
+                      <input
+                        type="date"
+                        value={data.dob}
+                        onChange={(e) => handleAssignmentChange(idx, 'dob', e.target.value)}
+                        className="w-full bg-black/60 border border-zinc-700 text-white font-mono p-2 focus:outline-none focus:border-primary transition-colors focus:ring-1 focus:ring-primary [color-scheme:dark]"
                       />
                     </div>
                   </div>
