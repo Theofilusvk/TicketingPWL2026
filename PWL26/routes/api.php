@@ -19,6 +19,10 @@ use App\Http\Controllers\Api\AdminReportController;
 Route::post('auth/register', [AuthController::class, 'register']);
 Route::post('auth/login', [AuthController::class, 'login']);
 
+// Forgot & Reset Password
+Route::post('auth/forgot-password', [\App\Http\Controllers\Api\ForgotPasswordController::class, 'sendResetLinkEmail']);
+Route::post('auth/reset-password', [\App\Http\Controllers\Api\ForgotPasswordController::class, 'reset']);
+
 // Public Read-only Event & Category
 Route::apiResource('events', EventController::class)->only(['index', 'show']);
 Route::apiResource('categories', CategoryController::class)->only(['index', 'show']);

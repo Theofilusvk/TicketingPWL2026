@@ -22,6 +22,8 @@ const HistoryPage = lazy(() => import('./pages/HistoryPage').then(module => ({ d
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(module => ({ default: module.ProfilePage })))
 const AchievementsPage = lazy(() => import('./pages/AchievementsPage').then(module => ({ default: module.AchievementsPage })))
 const ChatRoomPage = lazy(() => import('./pages/ChatRoomPage').then(module => ({ default: module.ChatRoomPage })))
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then(module => ({ default: module.ForgotPasswordPage })))
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage').then(module => ({ default: module.ResetPasswordPage })))
 
 // Admin Pages
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout').then(module => ({ default: module.AdminLayout })))
@@ -67,6 +69,8 @@ export function App() {
             <Route element={<AppShell />}>
             <Route index element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/events" element={<EventsPage />} />
             <Route path="/events/:eventId" element={<EventDetailPage />} />
             <Route path="/chat/:eventId" element={<ChatRoomPage />} />

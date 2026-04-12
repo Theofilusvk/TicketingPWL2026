@@ -152,6 +152,17 @@ export function LoginPage() {
                 </button>
               </div>
             </div>
+            {mode === 'login' && (
+              <div className="text-right mt-1">
+                <button
+                  type="button"
+                  onClick={() => navigate('/forgot-password')}
+                  className="font-accent text-[9px] text-primary/50 hover:text-primary transition-colors uppercase"
+                >
+                  FORGOT SECURITY KEY?
+                </button>
+              </div>
+            )}
           </div>
 
           {mode === 'signup' ? (
