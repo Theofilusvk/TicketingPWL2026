@@ -2,111 +2,43 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>VORTEX SECURITY PROTOCOL</title>
-    <style>
-        body {
-            background-color: #050505;
-            color: #d4d4d4;
-            font-family: 'Courier New', Courier, monospace;
-            padding: 30px;
-            margin: 0;
-            line-height: 1.6;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            border: 1px solid #cbff00;
-            padding: 20px;
-            background-color: #0a0a0a;
-            position: relative;
-        }
-        .header {
-            border-bottom: 1px dashed #cbff00;
-            padding-bottom: 15px;
-            margin-bottom: 25px;
-            text-align: center;
-        }
-        .title {
-            color: #cbff00;
-            font-size: 24px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin: 0;
-        }
-        .subtitle {
-            color: #666;
-            font-size: 12px;
-            letter-spacing: 4px;
-            margin-top: 5px;
-        }
-        .content {
-            margin-bottom: 30px;
-        }
-        .alert {
-            background-color: #111111;
-            border-left: 4px solid #cbff00;
-            padding: 10px 15px;
-            margin: 20px 0;
-            font-size: 14px;
-            color: #d4d4d4;
-        }
-        .button-wrapper {
-            text-align: center;
-            margin: 35px 0;
-        }
-        .button {
-            display: inline-block;
-            background-color: #cbff00;
-            color: #050505;
-            text-decoration: none;
-            padding: 12px 30px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-size: 14px;
-            border: none;
-        }
-        .text-neon {
-            color: #cbff00;
-        }
-    </style>
+    <title>Vortex Password Reset</title>
 </head>
-<body style="background-color: #050505; color: #d4d4d4; font-family: 'Courier New', Courier, monospace; padding: 20px;">
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #050505;">
+<body style="background-color: #f4f4f5; color: #333; font-family: Arial, Helvetica, sans-serif; padding: 20px; margin: 0;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f4f4f5;">
         <tr>
             <td align="center">
-                <table width="600" border="0" cellspacing="0" cellpadding="20" style="border: 1px solid #cbff00; background-color: #0a0a0a; margin: 0 auto; text-align: left;">
+                <table width="600" border="0" cellspacing="0" cellpadding="24" style="border: 1px solid #e5e7eb; background-color: #ffffff; margin: 0 auto; text-align: left; border-radius: 8px;">
                     <tr>
-                        <td style="border-bottom: 1px dashed #cbff00; padding-bottom: 15px; text-align: center;">
-                            <h1 style="color: #cbff00; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; margin: 0; font-family: 'Courier New', Courier, monospace;">VORTEX NODE</h1>
-                            <div style="color: #888888; font-size: 12px; letter-spacing: 4px; margin-top: 5px; font-family: 'Courier New', Courier, monospace;">SECURITY INTERVENTION TRIGGERED</div>
+                        <td style="border-bottom: 2px solid #4f46e5; padding-bottom: 16px; text-align: center;">
+                            <h1 style="color: #4f46e5; font-size: 22px; letter-spacing: 1px; margin: 0;">VORTEX</h1>
+                            <div style="color: #9ca3af; font-size: 12px; margin-top: 4px;">Password Reset</div>
                         </td>
                     </tr>
                     <tr>
-                        <td style="padding-top: 25px; padding-bottom: 30px; color: #d4d4d4; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.6;">
-                            <p style="color: #d4d4d4; margin-top: 0;">USER IDENTIFIER RECOGNIZED.</p>
-                            <p style="color: #d4d4d4;">We received an automated request to reset the <span style="color: #cbff00; font-weight: bold;">SECURITY KEY</span> associated with your credentials on the Vortex network.</p>
-                            
-                            <div style="background-color: #1a1a1a; border-left: 4px solid #cbff00; padding: 10px 15px; margin: 20px 0; font-size: 14px; color: #d4d4d4;">
-                                <strong style="color: #cbff00;">WARNING:</strong> If you did not initiate this system override, ignore this transmission. Your current security key remains active.
+                        <td style="padding-top: 20px; padding-bottom: 24px; color: #374151; font-size: 14px; line-height: 1.7;">
+                            <p style="margin-top: 0;">Hi,</p>
+                            <p>We received a request to reset the password associated with your Vortex account.</p>
+
+                            <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 20px 0; font-size: 13px; color: #92400e; border-radius: 0 6px 6px 0;">
+                                <strong>Important:</strong> If you did not request this password reset, please ignore this email. Your password will remain unchanged.
                             </div>
 
-                            <p style="color: #d4d4d4;">To establish a new security key and regain access to the network, initialize the override protocol below:</p>
+                            <p>Click the button below to set a new password:</p>
 
-                            <div style="text-align: center; margin: 35px 0;">
-                                <a href="{{ $resetUrl }}" style="display: inline-block; background-color: #cbff00; color: #050505; text-decoration: none; padding: 12px 30px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; font-size: 14px; font-family: 'Courier New', Courier, monospace;">INITIALIZE OVERRIDE</a>
+                            <div style="text-align: center; margin: 28px 0;">
+                                <a href="{{ $resetUrl }}" style="display: inline-block; background-color: #4f46e5; color: #ffffff; text-decoration: none; padding: 14px 32px; font-weight: bold; font-size: 14px; border-radius: 8px;">Reset Password</a>
                             </div>
 
-                            <p style="font-size: 12px; color: #888888; overflow-wrap: break-word; text-align: center;">
-                                Or manually access the node via:<br>
-                                <a href="{{ $resetUrl }}" style="color: #888888; text-decoration: underline;">{{ $resetUrl }}</a>
+                            <p style="font-size: 12px; color: #9ca3af; text-align: center; word-break: break-all;">
+                                Or copy this link:<br>
+                                <a href="{{ $resetUrl }}" style="color: #4f46e5;">{{ $resetUrl }}</a>
                             </p>
                         </td>
                     </tr>
                     <tr>
-                        <td style="border-top: 1px dashed #444444; padding-top: 15px; font-size: 11px; color: #666666; text-align: center; font-family: 'Courier New', Courier, monospace;">
-                            TRANSMISSION SECURED VIA VORTEX PROTOCOL<br>
-                            NODE_77-X // LATENCY: 12MS // ENCRYPTION: ACTIVE
+                        <td style="border-top: 1px solid #e5e7eb; padding-top: 16px; font-size: 11px; color: #9ca3af; text-align: center;">
+                            Vortex Ticketing System
                         </td>
                     </tr>
                 </table>

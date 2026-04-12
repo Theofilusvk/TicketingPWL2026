@@ -18,12 +18,10 @@ class QrCodeGenerator
     
     public static function generateForTicket(string $uniqueCode, string $prefix = 'ticket'): string
     {
-        $encryptedData = Crypt::encryptString($uniqueCode);
-        
         $svgContent = QrCode::format('svg')
                         ->size(200)
                         ->margin(1)
-                        ->generate($encryptedData);
+                        ->generate($uniqueCode);
                         
         $filename = 'qrcodes/' . $prefix . '_' . substr(md5($uniqueCode), 0, 10) . '.svg';
         

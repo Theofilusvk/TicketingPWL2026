@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { Html5Qrcode } from 'html5-qrcode'
 import { useStore, type Ticket } from '../../lib/store'
 import { useAudio } from '../../lib/audio'
 
@@ -9,10 +10,19 @@ export function AdminScannerPage() {
   const [ticketInput, setTicketInput] = useState('')
   const [scanResult, setScanResult] = useState<{ status: 'IDLE' | 'SUCCESS' | 'ERROR' | 'WARNING'; message: string; ticket?: Ticket }>({ status: 'IDLE', message: '' })
   const [isScanning, setIsScanning] = useState(false)
+  const [cameraActive, setCameraActive] = useState(false)
+  
+  const html5QrCodeRef = useRef<Html5Qrcode | null>(null)
+  const qrcodeRegionId = "html5qr-code-full-region"
+  const processingRef = useRef(false) // Prevent duplicate processing
 
   const processTicket = async (code: string) => {
+    if (processingRef.current) return;
+    processingRef.current = true;
+    
     setIsScanning(true)
     setScanResult({ status: 'IDLE', message: '' })
+    playClickSound() // Beep
     
     try {
       // Connect to Laravel Backend /api/tickets/validate
@@ -20,18 +30,17 @@ export function AdminScannerPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('vortex.auth.token') || ''}`
         },
         body: JSON.stringify({ unique_code: code })
       });
       
       const result = await response.json();
       
-      playClickSound(); // Beep
-      
       if (!response.ok || result.status === 'error') {
         const message = result.message || 'INVALID TICKET ID DETECTED';
-        if (message.includes('SUDAH TERPAKAI')) {
+        if (message.includes('SUDAH TERPAKAI') || message.includes('already been used')) {
            setScanResult({
              status: 'WARNING',
              message: message,
@@ -43,21 +52,18 @@ export function AdminScannerPage() {
              message: message,
            });
         }
-        return;
-      }
-
-      // Valid and unused!
-      if (result.data) {
+      } else if (result.data) {
+         // Valid and unused!
          setScanResult({
            status: 'SUCCESS',
            message: 'ACCESS GRANTED',
            ticket: { 
-             assignedName: 'Verified User', 
+             assignedName: result.data.user?.username || 'Verified User', 
              ticketId: result.data.unique_code, 
-             eventName: result.data.order_item_id ? 'Event Ticket' : 'Verified Event', 
-             tier: 'GENERAL', 
+             eventName: result.data.event?.title || 'Verified Event', 
+             tier: result.data.ticket_name || 'GENERAL', 
              id: result.data.ticket_id, 
-             eventId: '...', venue: '...', date: '...', gate: '...', orderId: '...', purchaseDate: '...', status: 'VALID' 
+             eventId: '...', venue: '...', date: '...', gate: '...', orderId: result.data.order_id, purchaseDate: '...', status: 'VALID' 
            }
          });
       }
@@ -69,6 +75,10 @@ export function AdminScannerPage() {
       });
     } finally {
       setIsScanning(false)
+      // Reset cooldown for the next scan
+      setTimeout(() => {
+        processingRef.current = false;
+      }, 3000); // 3 seconds cooldown before accepting another code
     }
   }
 
@@ -79,15 +89,55 @@ export function AdminScannerPage() {
     setTicketInput('')
   }
 
-  const simulateCameraScan = () => {
-    // Generate a simulated valid code that might not exist locally but we can try just to see the API response loading state.
-    // Or if local mock tickets exist, pass one of them.
-    const validTickets = ownedTickets.filter(t => t.status !== 'SCANNED')
-    if (validTickets.length > 0) {
-      const target = validTickets[Math.floor(Math.random() * validTickets.length)]
-      processTicket(target.ticketId)
+  useEffect(() => {
+    // Cleanup function when component unmounts
+    return () => {
+      if (html5QrCodeRef.current && cameraActive) {
+        html5QrCodeRef.current.stop().catch(console.error)
+      }
+    }
+  }, [cameraActive])
+
+  const toggleCamera = async () => {
+    if (cameraActive) {
+      if (html5QrCodeRef.current) {
+        await html5QrCodeRef.current.stop().catch(console.error)
+        html5QrCodeRef.current.clear()
+        setCameraActive(false)
+      }
     } else {
-      processTicket('TKT-MOCK-123')
+      setCameraActive(true)
+      // Small delay to ensure the div is rendered
+      setTimeout(() => {
+        if (!html5QrCodeRef.current) {
+          html5QrCodeRef.current = new Html5Qrcode(qrcodeRegionId)
+        }
+        
+        const qrCodeSuccessCallback = (decodedText: string, decodedResult: any) => {
+          if (!processingRef.current) {
+            processTicket(decodedText);
+          }
+        };
+
+        // If we don't provide qrbox, it will scan the whole video frame
+        // This is better for custom UIs so the user just points the camera
+        const config = { 
+          fps: 15,
+          aspectRatio: 1.0
+        };
+        
+        // If facingMode not supported by device, it falls back to whatever is available
+        html5QrCodeRef.current.start(
+          { facingMode: "environment" }, 
+          config, 
+          qrCodeSuccessCallback,
+          (errorMessage) => { /* Only log errors if needed, usually just means no QR found in frame */ }
+        ).catch(err => {
+          console.error("Error starting camera: ", err);
+          alert("Failed to start camera. Please check permissions or try another browser.");
+          setCameraActive(false);
+        });
+      }, 300)
     }
   }
 
@@ -106,43 +156,50 @@ export function AdminScannerPage() {
         <div className="bg-white/[0.02] backdrop-blur-[40px] border border-white/[0.08] p-8 rounded-[32px] shadow-[4px_12px_40px_-12px_rgba(0,0,0,0.3)] relative overflow-hidden flex flex-col items-center justify-center min-h-[500px]">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
           
-          <div className="relative w-72 h-72 mb-8 mt-4 group">
+          <div className="relative w-72 h-72 mb-8 mt-4 group rounded-3xl overflow-hidden bg-black/20">
             {/* Corner Markers */}
-            <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white/30 rounded-tl-xl transition-all duration-300 group-hover:border-primary/60 group-hover:scale-110 origin-top-left" />
-            <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white/30 rounded-tr-xl transition-all duration-300 group-hover:border-primary/60 group-hover:scale-110 origin-top-right" />
-            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white/30 rounded-bl-xl transition-all duration-300 group-hover:border-primary/60 group-hover:scale-110 origin-bottom-left" />
-            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white/30 rounded-br-xl transition-all duration-300 group-hover:border-primary/60 group-hover:scale-110 origin-bottom-right" />
+            <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white/30 rounded-tl-xl transition-all duration-300 group-hover:border-primary/60 group-hover:scale-110 origin-top-left z-20 pointer-events-none" />
+            <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white/30 rounded-tr-xl transition-all duration-300 group-hover:border-primary/60 group-hover:scale-110 origin-top-right z-20 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white/30 rounded-bl-xl transition-all duration-300 group-hover:border-primary/60 group-hover:scale-110 origin-bottom-left z-20 pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white/30 rounded-br-xl transition-all duration-300 group-hover:border-primary/60 group-hover:scale-110 origin-bottom-right z-20 pointer-events-none" />
             
-            {/* Center Crosshair */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-12 h-12 border border-white/10 rounded-full flex items-center justify-center">
-                 <div className="w-1 h-1 bg-white/30 rounded-full" />
+            {/* Real Camera Container */}
+            <div 
+              id={qrcodeRegionId} 
+              className={`absolute inset-0 rounded-3xl overflow-hidden bg-transparent transition-opacity duration-500 flex items-center justify-center ${cameraActive ? 'opacity-100' : 'opacity-0'} [&>video]:!w-full [&>video]:!h-full [&>video]:!object-cover [&>video]:rounded-3xl [&>canvas]:hidden`}
+            ></div>
+            
+            {/* Crosshair (Only when camera is not fully initializing or when scanning overlay) */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+              <div className="w-12 h-12 border border-white/30 rounded-full flex items-center justify-center">
+                 <div className="w-1 h-1 bg-white/50 rounded-full" />
               </div>
             </div>
 
             {/* Scanning Laser */}
-            {isScanning && (
-              <div className="absolute top-0 left-0 w-full h-1 bg-primary/80 shadow-[0_0_20px_rgba(203,255,0,0.8)] animate-[scan_1s_ease-in-out_infinite_alternate]" />
+            {(isScanning || cameraActive) && (
+              <div className="absolute top-0 left-0 w-full h-1 bg-primary/80 shadow-[0_0_20px_rgba(203,255,0,0.8)] animate-[scan_2s_ease-in-out_infinite_alternate] z-20 pointer-events-none" />
             )}
             
-            {/* Fake Camera Feed Bg */}
-            <div className="absolute inset-4 bg-white/[0.02] backdrop-blur-sm rounded-3xl border border-white/[0.05] flex items-center justify-center overflow-hidden">
-               {isScanning ? (
-                 <span className="material-symbols-outlined text-4xl text-primary animate-pulse">qr_code_scanner</span>
-               ) : (
-                 <span className="material-symbols-outlined text-4xl text-white/20">qr_code_2</span>
-               )}
-            </div>
+            {/* Fake Camera Feed Bg (When Camera is OFF) */}
+            {!cameraActive && (
+              <div className="absolute inset-4 bg-white/[0.02] backdrop-blur-sm rounded-3xl border border-white/[0.05] flex flex-col items-center justify-center overflow-hidden">
+                <span className="material-symbols-outlined text-4xl text-white/20 mb-2">qr_code_2</span>
+                <span className="text-xs text-white/30 font-semibold uppercase tracking-widest">CAMERA OFFLINE</span>
+              </div>
+            )}
           </div>
 
           <button 
-            onClick={() => simulateCameraScan()}
+            onClick={toggleCamera}
             disabled={isScanning}
             onMouseEnter={playHoverSound}
-            className="w-full max-w-[288px] bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-md text-white font-semibold tracking-wide text-sm px-6 py-4 rounded-2xl transition-all duration-300 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] active:scale-95 flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`w-full max-w-[288px] ${cameraActive ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border-rose-500/30' : 'bg-primary/20 hover:bg-primary/30 text-primary border-primary/30'} border backdrop-blur-md font-semibold tracking-wide text-sm px-6 py-4 rounded-2xl transition-all duration-300 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] active:scale-95 flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed`}
           >
-            <span className="material-symbols-outlined text-[20px] group-hover:scale-110 transition-transform">document_scanner</span>
-            {isScanning ? 'PROCESSING...' : 'SIMULATE SCAN'}
+            <span className="material-symbols-outlined text-[20px] group-hover:scale-110 transition-transform">
+              {cameraActive ? 'videocam_off' : 'document_scanner'}
+            </span>
+            {isScanning ? 'PROCESSING...' : cameraActive ? 'STOP CAMERA' : 'START CAMERA SCANNER'}
           </button>
           
           <div className="mt-8 w-full max-w-[288px]">

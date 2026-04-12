@@ -72,7 +72,18 @@ class TicketController extends Controller
             'unique_code' => 'required|string'
         ]);
 
-        $ticket = Ticket::where('unique_code', $validated['unique_code'])->first();
+        $rawCode = $validated['unique_code'];
+
+        // If the code is a Laravel encrypted payload (typical base64 JSON containing iv, value, mac)
+        try {
+            if (str_starts_with($rawCode, 'eyJpdiI') || strlen($rawCode) > 100) {
+                $rawCode = \Illuminate\Support\Facades\Crypt::decryptString($rawCode);
+            }
+        } catch (\Exception $e) {
+            // Not an encrypted payload or failed to decrypt; assume it's raw text
+        }
+
+        $ticket = Ticket::where('unique_code', $rawCode)->first();
 
         if (!$ticket) {
             return response()->json([
@@ -101,10 +112,32 @@ class TicketController extends Controller
             'checked_in_at' => now()
         ]);
 
+        // Get rich data
+        $richData = $ticket->toArray();
+        $orderItem = \Illuminate\Support\Facades\DB::table('order_items')->where('order_item_id', $ticket->order_item_id)->first();
+        if ($orderItem) {
+            $ticketType = \Illuminate\Support\Facades\DB::table('ticket_types')->where('ticket_type_id', $orderItem->ticket_type_id)->first();
+            $richData['ticket_name'] = $ticketType ? $ticketType->name : 'PREMIUM';
+            $richData['order_id'] = $orderItem->order_id;
+            
+            $order = \Illuminate\Support\Facades\DB::table('orders')->where('order_id', $orderItem->order_id)->first();
+            if ($order) {
+                $user = \Illuminate\Support\Facades\DB::table('users')->where('user_id', $order->user_id)->first();
+                if ($user) {
+                    $richData['user'] = ['username' => $user->username];
+                }
+                
+                $event = \Illuminate\Support\Facades\DB::table('events')->where('event_id', $order->event_id)->first();
+                if ($event) {
+                    $richData['event'] = ['title' => $event->title];
+                }
+            }
+        }
+
         return response()->json([
             'status' => 'success',
             'message' => 'TIKET VALID! Pintu dibuka.',
-            'data' => $ticket
+            'data' => $richData
         ]);
     }
 }

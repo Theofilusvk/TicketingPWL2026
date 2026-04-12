@@ -320,7 +320,7 @@ export function AdminReportsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white/[0.02] backdrop-blur-[40px] border border-white/[0.08] rounded-[24px] p-5 shadow-[4px_12px_40px_-12px_rgba(0,0,0,0.3)] relative overflow-hidden">
+      <div className="bg-white/[0.02] backdrop-blur-[40px] border border-white/[0.08] rounded-[24px] p-5 shadow-[4px_12px_40px_-12px_rgba(0,0,0,0.3)] relative min-h-[90px] z-20">
         <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
         <div className="flex flex-col lg:flex-row gap-4 items-end">
           <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">

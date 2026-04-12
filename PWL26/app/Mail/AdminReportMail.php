@@ -14,15 +14,15 @@ class AdminReportMail extends Mailable
     use Queueable, SerializesModels;
 
     public $reportType;
-    public $csvContent;
+    public $pdfContent;
 
     /**
      * Create a new message instance.
      */
-    public function __construct($reportType, $csvContent)
+    public function __construct($reportType, $pdfContent)
     {
         $this->reportType = $reportType;
-        $this->csvContent = $csvContent;
+        $this->pdfContent = $pdfContent;
     }
 
     /**
@@ -31,7 +31,7 @@ class AdminReportMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Vortex Admin Report: ' . ucfirst(str_replace('-', ' ', $this->reportType)),
+            subject: '[VORTEX] Report: ' . ucfirst(str_replace('-', ' ', $this->reportType)),
         );
     }
 
@@ -53,8 +53,8 @@ class AdminReportMail extends Mailable
     public function attachments(): array
     {
         return [
-            Attachment::fromData(fn () => $this->csvContent, 'vortex_report_' . $this->reportType . '_' . date('Ymd_His') . '.csv')
-                ->withMime('text/csv'),
+            Attachment::fromData(fn () => $this->pdfContent, 'vortex_report_' . $this->reportType . '_' . date('Ymd_His') . '.pdf')
+                ->withMime('application/pdf'),
         ];
     }
 }
