@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\AdminReportController;
 // Public Auth
 Route::post('auth/register', [AuthController::class, 'register']);
 Route::post('auth/login', [AuthController::class, 'login']);
+Route::post('auth/send-register-otp', [AuthController::class, 'sendRegisterOtp']);
 
 // Forgot & Reset Password
 Route::post('auth/forgot-password', [\App\Http\Controllers\Api\ForgotPasswordController::class, 'sendResetLinkEmail']);
