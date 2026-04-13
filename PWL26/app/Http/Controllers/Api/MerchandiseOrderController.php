@@ -6,9 +6,17 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Xendit\Configuration;
+use Xendit\Invoice\InvoiceApi;
+use Xendit\Invoice\CreateInvoiceRequest;
 
 class MerchandiseOrderController extends Controller
 {
+    public function __construct()
+    {
+        Configuration::setXenditKey(env('XENDIT_SECRET_KEY'));
+    }
+
     /**
      * Calculate merchandise checkout totals
      */
@@ -151,7 +159,7 @@ class MerchandiseOrderController extends Controller
                     'payment_type' => 'MONEY',
                     'amount_money' => $lineTotal,
                     'amount_credits' => 0,
-                    'status' => 'paid',
+                    'status' => 'pending',
                     'shipping_address' => $shippingAddress,
                     'created_at' => now(),
                     'updated_at' => now(),
@@ -164,25 +172,44 @@ class MerchandiseOrderController extends Controller
             $tax = $subtotal * 0.08;
             $total = $subtotal + $serviceFee + $tax;
 
+            $referenceId = 'MERCH-' . strtoupper(Str::random(10));
+
             // Create a virtual "order" for tracking purposes in orders table
             $orderId = DB::table('orders')->insertGetId([
                 'user_id' => $user->user_id,
                 'event_id' => null, // Merchandise orders don't have events
-                'status' => 'paid',
+                'status' => 'pending',
                 'payment_method' => $paymentMethod,
-                'payment_reference' => 'MERCH-' . strtoupper(Str::random(10)),
+                'payment_reference' => $referenceId,
                 'total_price' => $total,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
 
+            // Update all merch orders with the order_id
+            DB::table('merchandise_orders')
+                ->whereIn('merch_order_id', $merchOrders)
+                ->update(['order_id' => $orderId]);
+
+            // Generate Invoice Xendit
+            $apiInstance = new InvoiceApi();
+            $invoiceRequest = new CreateInvoiceRequest([
+                'external_id' => $referenceId,
+                'amount' => $total,
+                'payer_email' => $user->email,
+                'description' => 'Pembayaran Merchandise Vortex',
+                'success_redirect_url' => env('FRONTEND_URL', 'http://localhost:5173') . '/success?orderId=' . $orderId,
+            ]);
+
+            $invoice = $apiInstance->createInvoice($invoiceRequest);
+
             // Create payment record
             DB::table('payments')->insert([
                 'order_id' => $orderId,
                 'amount' => $total,
-                'payment_date' => now(),
-                'payment_method' => $paymentMethod,
-                'status' => 'paid',
+                'payment_date' => null,
+                'payment_method' => 'XENDIT',
+                'status' => 'pending',
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -211,9 +238,12 @@ class MerchandiseOrderController extends Controller
 
             DB::commit();
 
+            DB::commit();
+
             return response()->json([
                 'status' => 'success',
-                'message' => 'Merchandise checkout processed successfully (instant)',
+                'message' => 'Merchandise checkout processed',
+                'invoice_url' => $invoice['invoice_url'],
                 'data' => [
                     'order_id' => $orderId,
                     'merch_order_ids' => $merchOrders,

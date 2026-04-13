@@ -5,10 +5,43 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\RegisterOtpMail;
 
 class AuthController extends Controller
 {
+    /**
+     * Send OTP to email for registration verification.
+     */
+    public function sendRegisterOtp(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|max:150',
+        ]);
+
+        // Check if email is already registered
+        if (User::where('email', $request->email)->exists()) {
+            return response()->json([
+                'message' => 'This email is already registered.'
+            ], 422);
+        }
+
+        // Generate 6-digit OTP
+        $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        // Store OTP in cache for 5 minutes, keyed by email
+        Cache::put('register_otp_' . $request->email, $otp, now()->addMinutes(5));
+
+        // Send OTP email
+        Mail::to($request->email)->send(new RegisterOtpMail($otp));
+
+        return response()->json([
+            'message' => 'OTP sent successfully.'
+        ]);
+    }
+
     public function register(Request $request)
     {
         $validated = $request->validate([
@@ -16,10 +49,25 @@ class AuthController extends Controller
             'email' => 'required|string|email|max:150|unique:users,email',
             'phone' => 'nullable|string|max:20',
             'password' => 'required|string|min:8',
+            'otp' => 'required|string|size:6',
         ]);
 
-        // Password will be automatically hashed by the User model's 'hashed' cast
-        $validated['role'] = 'user'; // Strictly set as user for registration
+        // Verify OTP
+        $cachedOtp = Cache::get('register_otp_' . $request->email);
+
+        if (!$cachedOtp || $cachedOtp !== $request->otp) {
+            return response()->json([
+                'message' => 'Invalid or expired OTP code.'
+            ], 422);
+        }
+
+        // OTP is valid, remove it from cache
+        Cache::forget('register_otp_' . $request->email);
+
+        // Create user
+        $validated['role'] = 'user';
+        // Remove otp from validated data before creating user
+        unset($validated['otp']);
 
         $user = User::create($validated);
         $token = $user->createToken('auth_token')->plainTextToken;

@@ -19,6 +19,8 @@ type AuthContextValue = {
   signup: (params: {
     username: string
     password: string
+    email: string
+    otp: string
   }) => Promise<{ ok: true } | { ok: false; message: string }>
   logout: () => void
   updateUser: (updates: Partial<User>) => void
@@ -78,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token])
 
   const signup = useCallback(
-    async ({ username, password }: { username: string; password: string }) => {
+    async ({ username, password, email, otp }: { username: string; password: string; email: string; otp: string }) => {
       try {
         const response = await fetch('/api/auth/register', {
           method: 'POST',
@@ -89,7 +91,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           body: JSON.stringify({
             username,
             password,
-            email: `${username}@vortex.net` // Temporary email format if they don't provide email
+            email,
+            otp,
           })
         })
 

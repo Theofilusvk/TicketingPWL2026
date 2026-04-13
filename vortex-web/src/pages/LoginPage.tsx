@@ -20,11 +20,54 @@ export function LoginPage() {
   }, [isAuthenticated, navigate, returnTo, user?.isAdmin])
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [otp, setOtp] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
+  const [otpSent, setOtpSent] = useState(false)
+  const [otpLoading, setOtpLoading] = useState(false)
+  const [otpCooldown, setOtpCooldown] = useState(0)
+
+  // OTP cooldown timer
+  useEffect(() => {
+    if (otpCooldown <= 0) return
+    const timer = setInterval(() => {
+      setOtpCooldown((c) => c - 1)
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [otpCooldown])
+
+  const handleSendOtp = async () => {
+    if (!email) {
+      setError('Please enter an email address first.')
+      return
+    }
+    setOtpLoading(true)
+    setError(null)
+    setSuccessMsg(null)
+
+    try {
+      const res = await fetch('/api/auth/send-register-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to send OTP.')
+      }
+      setOtpSent(true)
+      setOtpCooldown(60) // 60 second cooldown before resend
+      setSuccessMsg('OTP DISPATCHED. CHECK YOUR EMAIL INBOX.')
+    } catch (err: any) {
+      setError(err.message || 'Failed to send OTP.')
+    } finally {
+      setOtpLoading(false)
+    }
+  }
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -32,11 +75,19 @@ export function LoginPage() {
     setSuccessMsg(null)
 
     if (mode === 'signup') {
+      if (password.length < 8) {
+        setError('Security Key must be at least 8 characters.')
+        return
+      }
       if (password !== confirmPassword) {
         setError('Confirm Security Key must match Security Key.')
         return
       }
-      const res = await signup({ username, password })
+      if (!otp) {
+        setError('Please enter the OTP code sent to your email.')
+        return
+      }
+      const res = await signup({ username, password, email, otp })
       if (!res.ok) {
         setError(res.message)
         return
@@ -45,6 +96,9 @@ export function LoginPage() {
       setMode('login')
       setPassword('')
       setConfirmPassword('')
+      setOtp('')
+      setOtpSent(false)
+      setEmail('')
       return
     }
 
@@ -87,6 +141,10 @@ export function LoginPage() {
             className="font-accent text-[10px] uppercase tracking-widest text-primary hover:text-white transition-colors"
             onClick={() => {
               setError(null)
+              setSuccessMsg(null)
+              setOtpSent(false)
+              setOtp('')
+              setEmail('')
               setMode((m) => (m === 'login' ? 'signup' : 'login'))
             }}
           >
@@ -106,6 +164,60 @@ export function LoginPage() {
             </div>
           ) : null}
 
+          {/* EMAIL - signup only, shown first */}
+          {mode === 'signup' && (
+            <div className="space-y-2">
+              <label className="font-accent text-xs text-primary flex justify-between items-end">
+                <span>/ EMAIL_IDENTIFIER</span>
+                <span className="text-[8px] opacity-50 text-zinc-400">REQUIRED_FIELD</span>
+              </label>
+              <div className="relative">
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-transparent border-b border-primary/30 p-3 pr-28 font-accent text-white focus:border-primary focus:ring-0 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                  placeholder="_ENTER_EMAIL"
+                  type="email"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={handleSendOtp}
+                  disabled={otpLoading || otpCooldown > 0}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 bg-primary/20 hover:bg-primary/40 text-primary px-3 py-1.5 font-accent text-[9px] uppercase tracking-wider transition-colors disabled:opacity-40 disabled:cursor-not-allowed rounded"
+                >
+                  {otpLoading ? 'SENDING...' : otpCooldown > 0 ? `RESEND (${otpCooldown}s)` : otpSent ? 'RESEND OTP' : 'SEND OTP'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* OTP - signup only, shown after OTP sent */}
+          {mode === 'signup' && otpSent && (
+            <div className="space-y-2 mt-4">
+              <label className="font-accent text-xs text-primary flex justify-between items-end">
+                <span>/ OTP_CODE</span>
+                <span className="text-[8px] opacity-50 text-zinc-400">6_DIGIT_CODE</span>
+              </label>
+              <div className="relative">
+                <input
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="w-full bg-transparent border-b border-primary/30 p-3 font-accent text-white focus:border-primary focus:ring-0 outline-none transition-all placeholder:text-zinc-700 text-sm tracking-[8px] text-center"
+                  placeholder="______"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  required
+                />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-primary/30">
+                  <span className="material-symbols-outlined text-sm">pin</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* USERNAME */}
           <div className="space-y-2">
             <label className="font-accent text-xs text-primary flex justify-between items-end">
               <span>/ USERNAME</span>
@@ -126,6 +238,7 @@ export function LoginPage() {
             </div>
           </div>
 
+          {/* PASSWORD */}
           <div className="space-y-2 mt-6">
             <label className="font-accent text-xs text-primary flex justify-between items-end">
               <span>/ SECURITY_KEY</span>
@@ -152,8 +265,20 @@ export function LoginPage() {
                 </button>
               </div>
             </div>
+            {mode === 'login' && (
+              <div className="text-right mt-1">
+                <button
+                  type="button"
+                  onClick={() => navigate('/forgot-password')}
+                  className="font-accent text-[9px] text-primary/50 hover:text-primary transition-colors uppercase"
+                >
+                  FORGOT SECURITY KEY?
+                </button>
+              </div>
+            )}
           </div>
 
+          {/* CONFIRM PASSWORD - signup only */}
           {mode === 'signup' ? (
             <div className="space-y-2 mt-6">
               <label className="font-accent text-xs text-primary flex justify-between items-end">

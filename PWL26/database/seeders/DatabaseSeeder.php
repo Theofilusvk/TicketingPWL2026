@@ -39,7 +39,7 @@ class DatabaseSeeder extends Seeder
             // Extra users to satisfy user_achievements foreign keys (7, 8, 9)
             ['user_id' => 7, 'username' => 'user7', 'email' => 'user7@test.com', 'phone' => '111', 'password' => Hash::make('123'), 'role' => 'user', 'created_at' => now(), 'updated_at' => now()],
             ['user_id' => 8, 'username' => 'user8', 'email' => 'user8@test.com', 'phone' => '222', 'password' => Hash::make('123'), 'role' => 'user', 'created_at' => now(), 'updated_at' => now()],
-            ['user_id' => 9, 'username' => 'user9', 'email' => 'user9@test.com', 'phone' => '333', 'password' => Hash::make('123'), 'role' => 'user', 'created_at' => now(), 'updated_at' => now()],
+            ['user_id' => 9, 'username' => 'jeryko', 'email' => 'jerykoheliandra05@gmail.com', 'phone' => '08123456789', 'password' => Hash::make('jeryko123'), 'role' => 'user', 'created_at' => now(), 'updated_at' => now()],
         ]);
 
         // ── 2. CATEGORIES ───────────────────────────────────────────────────
@@ -71,7 +71,7 @@ class DatabaseSeeder extends Seeder
             // Premium Events
             ['event_id' => 6, 'organizer_id' => 4, 'category_id' => 1, 'title' => 'Soundwave Music Festival', 'description' => 'BIGGEST MUSIC FESTIVAL IN JAKARTA. A CELEBRATION OF UNDERGROUND AND MAINSTREAM ELECTRONIC MUSIC. FEATURING INTERNATIONAL DJ HEADLINERS, LIVE PERFORMANCES, AND EXPERIMENTAL SOUND INSTALLATIONS. DANCE UNTIL DAWN AT SENAYAN PARK WITH THOUSANDS OF PHANTOMS.', 'banner_url' => $musicImg, 'location' => 'Senayan', 'start_time' => '2026-06-14 14:00:00', 'end_time' => '2026-06-14 23:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
             
-            ['event_id' => 7, 'organizer_id' => 4, 'category_id' => 1, 'title' => 'Acoustic Night: Unplugged Sessions', 'description' => 'AN INTIMATE EVENING OF ACOUSTIC PERFORMANCES IN MINIMAL LIGHT CONDITIONS. STRIPPED-DOWN ARRANGEMENTS AND RAW VOCAL POWER. FEATURING UNDERGROUND ARTISTS PERFORMING IN CLOSE PROXIMITY TO AUDIENCE. CAPACITY LIMITED TO 150. AMBIENT SOUNDS AND SOUL MUSIC IN A VINTAGE WAREHOUSE SETTING.', 'banner_url' => $acousticImg, 'location' => 'Roemah Kuliner', 'start_time' => '2026-07-05 19:00:00', 'end_time' => '2026-07-05 22:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
+            ['event_id' => 7, 'organizer_id' => 4, 'category_id' => 1, 'title' => 'Acoustic Night: Unplugged Sessions', 'description' => 'AN INTIMATE EVENING OF ACOUSTIC PERFORMANCES IN MINIMAL LIGHT CONDITIONS. STRIPPED-DOWN ARRANGEMENTS AND RAW VOCAL POWER. FEATURING UNDERGROUND ARTISTS PERFORMING IN CLOSE PROXIMITY TO AUDIENCE. CAPACITY LIMITED TO 150. AMBIENT SOUNDS AND SOUL MUSIC IN A VINTAGE WAREHOUSE SETTING.', 'banner_url' => $musicImg, 'location' => 'Roemah Kuliner', 'start_time' => '2026-07-05 19:00:00', 'end_time' => '2026-07-05 22:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
             
             ['event_id' => 8, 'organizer_id' => 5, 'category_id' => 2, 'title' => 'TechPeak Summit 2026', 'description' => 'INDONESIA PREMIER TECHNOLOGY CONFERENCE. TWO DAYS OF KEYNOTES, WORKSHOPS, AND NETWORKING WITH LEADING TECH ENTREPRENEURS AND INNOVATORS. EXPLORE EMERGING TECHNOLOGIES: AI, BLOCKCHAIN, WEB3, AND DIGITAL TRANSFORMATION. FEATURING PANEL DISCUSSIONS AND HANDS-ON CODING SESSIONS.', 'banner_url' => $techPeakImg, 'location' => 'JCC', 'start_time' => '2026-08-20 08:00:00', 'end_time' => '2026-08-21 18:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
             
@@ -239,7 +239,174 @@ class DatabaseSeeder extends Seeder
             ['news_id' => 3, 'author_id' => 3, 'title' => 'MERCH DROP WINDOW', 'content' => 'Limited stock of Chrome Rave.', 'tag' => 'DROPS', 'urgency' => 'HIGH', 'is_published' => 1, 'published_at' => '2026-03-15 12:00:00', 'created_at' => now(), 'updated_at' => now()],
         ]);
 
+        // ── 19. ADDITIONAL DATA FOR STATISTICS ──────────────────────────────
+        $this->command->info('Generating additional data for statistics...');
+        $faker = \Faker\Factory::create('id_ID');
+
+        // Extra Events
+        $extraEvents = [];
+        $extraTicketTypes = [];
+        $eventIdStart = 13;
+        $ticketTypeIdStart = 12;
+        
+        $categoriesDetail = [
+            1 => 'Music', 2 => 'Tech', 3 => 'Sports', 4 => 'Education', 5 => 'Art', 6 => 'Business'
+        ];
+        $organizers = [1, 2, 4, 5, 6];
+        $eventTickets = [
+            1 => [[1, 500000], [2, 350000], [3, 150000]],
+            6 => [[4, 250000], [5, 750000]],
+            7 => [[6, 100000], [7, 200000]],
+            8 => [[8, 500000], [9, 1200000]],
+            12 => [[10, 25000], [11, 75000]],
+        ];
+        
+        $imagePool = [
+            'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&q=80',
+            'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&q=80',
+            'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80',
+            'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&q=80',
+            'https://images.unsplash.com/photo-1515169067868-5387ec356754?auto=format&fit=crop&q=80',
+            'https://images.unsplash.com/photo-1533174000276-26eaf1cffc85?auto=format&fit=crop&q=80',
+            'https://images.unsplash.com/photo-1516280440502-61dc5790beab?auto=format&fit=crop&q=80',
+            'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80'
+        ];
+
+        $prefixes = ['Festival', 'Pekan', 'Pameran', 'Workshop', 'Seminar', 'Konferensi', 'Summit', 'Expo', 'Bazar', 'Kompetisi', 'Meetup', 'Gelar Wicara'];
+        $themes = ['Nasional', 'Internasional', '2026', 'Nusantara', 'Kreatif', 'Muda', 'Digital', 'Inovasi', 'Global', 'Masa Depan', 'Karya', 'Bangkit', 'Lintas Generasi', 'Merdeka', 'Inspirasi'];
+
+        for ($i = 0; $i < 20; $i++) {
+            $catId = $faker->randomElement(array_keys($categoriesDetail));
+            $orgId = $faker->randomElement($organizers);
+            $start = clone $faker->dateTimeBetween('-5 months', '+2 months');
+            $end = clone $start;
+            $end->modify('+'.rand(3, 8).' hours');
+            $status = $start < now() ? 'finished' : 'active';
+            
+            $eventName = $faker->randomElement($prefixes) . ' ' . $categoriesDetail[$catId] . ' ' . $faker->randomElement($themes);
+            
+            $extraEvents[] = [
+                'event_id' => $eventIdStart,
+                'organizer_id' => $orgId,
+                'category_id' => $catId,
+                'title' => $eventName,
+                'description' => $faker->paragraph(3),
+                'banner_url' => $faker->randomElement($imagePool),
+                'location' => $faker->city,
+                'start_time' => $start,
+                'end_time' => $end,
+                'status' => $status,
+                'created_at' => $faker->dateTimeBetween('-6 months', $start),
+                'updated_at' => now(),
+            ];
+            
+            $numTypes = rand(1, 3);
+            for ($j = 0; $j < $numTypes; $j++) {
+                $price = rand(5, 100) * 10000; // 50k to 1mil
+                $extraTicketTypes[] = [
+                    'ticket_type_id' => $ticketTypeIdStart,
+                    'event_id' => $eventIdStart,
+                    'name' => $faker->randomElement(['Regular', 'VIP', 'VVIP', 'Early Bird', 'Presale']),
+                    'price' => $price,
+                    'available_stock' => rand(50, 500)
+                ];
+                $eventTickets[$eventIdStart][] = [$ticketTypeIdStart, $price];
+                $ticketTypeIdStart++;
+            }
+            $eventIdStart++;
+        }
+        DB::table('events')->insert($extraEvents);
+        DB::table('ticket_types')->insert($extraTicketTypes);
+
+        // Extra Orders & Tickets
+        $orders = [];
+        $orderItems = [];
+        $tickets = [];
+        $payments = [];
+        $orderIdStart = 6;
+        $orderItemIdStart = 6;
+        $ticketIdStart = 6;
+        $paymentIdStart = 6;
+
+        $paymentMethods = ['QRIS', 'Transfer', 'Ewallet', 'Credit Card'];
+        $gateways = ['Midtrans', 'Doku', 'OVO', 'Xendit'];
+
+        for ($i = 0; $i < 250; $i++) {
+            $eventId = $faker->randomElement(array_keys($eventTickets));
+            $userId = $faker->randomElement([1, 3, 7, 8, 9]);
+            $status = $faker->randomElement(['paid', 'paid', 'paid', 'paid', 'pending', 'failed']);
+            $paymentMethod = $faker->randomElement($paymentMethods);
+            $gateway = $faker->randomElement($gateways);
+
+            $ticketChoice = $faker->randomElement($eventTickets[$eventId]);
+            $ticketTypeId = $ticketChoice[0];
+            $unitPrice = $ticketChoice[1];
+            $qty = $faker->numberBetween(1, 4);
+            $totalPrice = $unitPrice * $qty;
+
+            $createdAt = clone $faker->dateTimeBetween('-5 months', 'now');
+
+            $orders[] = [
+                'order_id' => $orderIdStart,
+                'user_id' => $userId,
+                'event_id' => $eventId,
+                'status' => $status,
+                'payment_method' => $paymentMethod,
+                'payment_reference' => 'REF-' . str_pad($orderIdStart, 6, '0', STR_PAD_LEFT),
+                'total_price' => $totalPrice,
+                'created_at' => $createdAt,
+                'updated_at' => $createdAt,
+            ];
+
+            $orderItems[] = [
+                'order_item_id' => $orderItemIdStart,
+                'order_id' => $orderIdStart,
+                'ticket_type_id' => $ticketTypeId,
+                'quantity' => $qty,
+                'unit_price' => $unitPrice,
+            ];
+
+            if ($status === 'paid' || $status === 'pending') {
+                $paymentDate = null;
+                if ($status === 'paid') {
+                    $paymentDate = clone $createdAt;
+                    $paymentDate->modify('+'.rand(1, 60).' minutes');
+                }
+                $payments[] = [
+                    'payment_id' => $paymentIdStart,
+                    'order_id' => $orderIdStart,
+                    'amount' => $totalPrice,
+                    'payment_gateway' => $gateway,
+                    'payment_date' => $paymentDate,
+                    'created_at' => $createdAt,
+                ];
+                $paymentIdStart++;
+            }
+
+            if ($status === 'paid') {
+                for ($t = 0; $t < $qty; $t++) {
+                    $tickets[] = [
+                        'ticket_id' => $ticketIdStart,
+                        'order_item_id' => $orderItemIdStart,
+                        $ticketCodeColumn => 'TCK-' . strtoupper($faker->unique()->bothify('???-####')),
+                        'status' => $faker->randomElement(['available', 'used', 'available']),
+                        'qr_code_path' => 'path-' . $ticketIdStart,
+                        'checked_in_at' => null,
+                    ];
+                    $ticketIdStart++;
+                }
+            }
+
+            $orderIdStart++;
+            $orderItemIdStart++;
+        }
+
+        foreach (array_chunk($orders, 50) as $chunk) { DB::table('orders')->insert($chunk); }
+        foreach (array_chunk($orderItems, 50) as $chunk) { DB::table('order_items')->insert($chunk); }
+        foreach (array_chunk($payments, 50) as $chunk) { DB::table('payments')->insert($chunk); }
+        foreach (array_chunk($tickets, 50) as $chunk) { DB::table('tickets')->insert($chunk); }
+
         Schema::enableForeignKeyConstraints();
-        $this->command->info('ALL 18 TABLES SYNCHRONIZED SUCCESSFULLY!');
+        $this->command->info('ALL TABLES SYNCHRONIZED SUCCESSFULLY WITH EXTRA DATA!');
     }
 }

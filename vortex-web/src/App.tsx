@@ -22,9 +22,12 @@ const HistoryPage = lazy(() => import('./pages/HistoryPage').then(module => ({ d
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(module => ({ default: module.ProfilePage })))
 const AchievementsPage = lazy(() => import('./pages/AchievementsPage').then(module => ({ default: module.AchievementsPage })))
 const ChatRoomPage = lazy(() => import('./pages/ChatRoomPage').then(module => ({ default: module.ChatRoomPage })))
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then(module => ({ default: module.ForgotPasswordPage })))
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage').then(module => ({ default: module.ResetPasswordPage })))
 
 // Admin Pages
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout').then(module => ({ default: module.AdminLayout })))
+const AdminCategoriesPage = lazy(() => import('./pages/admin/AdminCategoriesPage').then(module => ({ default: module.AdminCategoriesPage })))
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage').then(module => ({ default: module.AdminDashboardPage })))
 const AdminEventsPage = lazy(() => import('./pages/admin/AdminEventsPage').then(module => ({ default: module.AdminEventsPage })))
 const AdminVenuesPage = lazy(() => import('./pages/admin/AdminVenuesPage').then(module => ({ default: module.AdminVenuesPage })))
@@ -54,6 +57,7 @@ export function App() {
               <Route path="scanner" element={<AdminScannerPage />} />
               <Route path="venues" element={<AdminVenuesPage />} />
               <Route path="events" element={<AdminEventsPage />} />
+              <Route path="categories" element={<AdminCategoriesPage />} />
               <Route path="users" element={<AdminUsersPage />} />
               <Route path="drops" element={<AdminDropsPage />} />
               <Route path="news" element={<AdminNewsPage />} />
@@ -65,6 +69,8 @@ export function App() {
             <Route element={<AppShell />}>
             <Route index element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/events" element={<EventsPage />} />
             <Route path="/events/:eventId" element={<EventDetailPage />} />
             <Route path="/chat/:eventId" element={<ChatRoomPage />} />

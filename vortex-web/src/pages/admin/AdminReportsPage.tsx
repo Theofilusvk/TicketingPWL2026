@@ -1,5 +1,4 @@
-import { useState, useMemo } from 'react'
-import { useStore } from '../../lib/store'
+import { useState, useMemo, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -15,8 +14,6 @@ const REPORT_TABS: { key: ReportType; label: string; icon: string; description: 
 ]
 
 export function AdminReportsPage() {
-  const { events, orderHistory, ownedTickets } = useStore()
-
   const [activeReport, setActiveReport] = useState<ReportType>('transaction')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -27,86 +24,112 @@ export function AdminReportsPage() {
   const [emailSent, setEmailSent] = useState(false)
   const [isSending, setIsSending] = useState(false)
 
+  // API Data States
+  const [apiTransactions, setApiTransactions] = useState<any[]>([])
+  const [apiDailyRevenue, setApiDailyRevenue] = useState<any[]>([])
+  const [apiEventComparison, setApiEventComparison] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+
+  // Dropdown options
+  const eventOptions = useMemo(() => {
+    return apiEventComparison.map(e => e.title)
+  }, [apiEventComparison])
+
+  useEffect(() => {
+    const token = localStorage.getItem('vortex.auth.token') || localStorage.getItem('auth_token')
+    if (!token) return
+
+    const headers: Record<string, string> = { Accept: 'application/json', Authorization: `Bearer ${token}` }
+    const params = new URLSearchParams()
+    if (dateFrom) params.set('date_from', dateFrom)
+    if (dateTo) params.set('date_to', dateTo)
+
+    setIsLoading(true)
+
+    Promise.all([
+      fetch(`/api/admin/analytics/transactions?${params}`, { headers }).then(r => r.json()),
+      fetch(`/api/admin/analytics/revenue?${params}`, { headers }).then(r => r.json()),
+      fetch(`/api/admin/analytics/event-comparison?${params}`, { headers }).then(r => r.json())
+    ])
+    .then(([transactionsRes, revenueRes, compRes]) => {
+      if (transactionsRes.status === 'success') {
+        const txs = transactionsRes.data.recent_transactions || []
+        // Optional: you can manually filter transactions beyond limit in a real large application by passing page sizes 
+        setApiTransactions(txs)
+      }
+      if (revenueRes.status === 'success') {
+        setApiDailyRevenue(revenueRes.data.daily_revenue || [])
+      }
+      if (compRes.status === 'success') {
+        setApiEventComparison(compRes.data || [])
+      }
+    })
+    .catch(err => console.error('Reports API Error:', err))
+    .finally(() => setIsLoading(false))
+
+  }, [dateFrom, dateTo]) // Re-fetch when date filter changes
+
   // ==================== DATA GENERATORS ====================
 
   // Transaction Report
   const transactionData = useMemo(() => {
-    let data = orderHistory.map(o => ({
-      orderId: o.id,
-      date: new Date(o.date).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' }),
-      rawDate: o.date,
-      items: o.items.map(i => i.title).join(', '),
-      itemCount: o.items.length,
-      total: o.total,
-      credits: o.creditsEarned,
-      status: 'Completed',
+    let data = apiTransactions.map(t => ({
+      orderId: t.order_id,
+      date: new Date(t.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' }),
+      rawDate: t.created_at,
+      items: t.event_title || 'N/A',
+      itemCount: 1, // Simplified as we aggregate
+      total: parseFloat(t.total_price),
+      credits: Math.round(parseFloat(t.total_price) * 0.1), // Mocked credits
+      status: t.status === 'paid' ? 'Completed' : t.status === 'pending' ? 'Pending' : t.status === 'refunded' ? 'Refunded' : 'Cancelled',
     }))
 
-    // Add simulated past transactions
-    const simulated = [
-      { orderId: 'ORD-7A3B1F', date: '10 Jan 2025', rawDate: '2025-01-10T08:00:00Z', items: 'NEON CHAOS 2025 × VIP', itemCount: 1, total: 4500, credits: 450, status: 'Completed' },
-      { orderId: 'ORD-2C9D4E', date: '12 Jan 2025', rawDate: '2025-01-12T14:30:00Z', items: 'SYNTHWAVE NIGHTS × GA', itemCount: 2, total: 4000, credits: 400, status: 'Completed' },
-      { orderId: 'ORD-8F1A2B', date: '15 Jan 2025', rawDate: '2025-01-15T10:15:00Z', items: 'STATIC PULSE × Early Bird', itemCount: 1, total: 1000, credits: 100, status: 'Refunded' },
-      { orderId: 'ORD-5E7C3D', date: '20 Jan 2025', rawDate: '2025-01-20T19:45:00Z', items: 'LED SOUND RESPONSIVE MASK', itemCount: 1, total: 5000, credits: 500, status: 'Completed' },
-      { orderId: 'ORD-4B6A9F', date: '5 Feb 2025', rawDate: '2025-02-05T12:00:00Z', items: 'NEON CHAOS 2025 × GA, HOLO VER 3.0 JACKET', itemCount: 2, total: 16500, credits: 1650, status: 'Completed' },
-      { orderId: 'ORD-1D3E5G', date: '14 Feb 2025', rawDate: '2025-02-14T20:00:00Z', items: 'NEON CHAOS 2025 × VIP', itemCount: 1, total: 4500, credits: 450, status: 'Completed' },
-      { orderId: 'ORD-9H2J4K', date: '1 Mar 2025', rawDate: '2025-03-01T09:30:00Z', items: 'SYNTHWAVE NIGHTS × VIP', itemCount: 1, total: 6000, credits: 600, status: 'Cancelled' },
-      { orderId: 'ORD-6L8M0N', date: '10 Mar 2025', rawDate: '2025-03-10T16:00:00Z', items: 'AR SYNTH SHADES', itemCount: 1, total: 2500, credits: 250, status: 'Completed' },
-    ]
-    data = [...simulated, ...data]
-
-    // Apply date filters
-    if (dateFrom) data = data.filter(d => d.rawDate >= dateFrom)
-    if (dateTo) data = data.filter(d => d.rawDate <= dateTo + 'T23:59:59Z')
-
-    // Apply event filter
+    // Apply event filter locally
     if (selectedEventFilter) {
-      data = data.filter(d => d.items.toLowerCase().includes(selectedEventFilter.toLowerCase()))
+      data = data.filter((d: any) => d.items.toLowerCase().includes(selectedEventFilter.toLowerCase()))
     }
 
     return data
-  }, [orderHistory, dateFrom, dateTo, selectedEventFilter])
+  }, [apiTransactions, selectedEventFilter])
 
   // Daily Revenue Report
   const dailyRevenueData = useMemo(() => {
-    const days: Record<string, number> = {}
-    const allTransactions = transactionData.filter(t => t.status === 'Completed')
-    allTransactions.forEach(t => {
-      const day = t.date
-      days[day] = (days[day] || 0) + t.total
-    })
-    return Object.entries(days)
-      .map(([date, revenue]) => ({ date, revenue }))
-      .sort((a, b) => a.date.localeCompare(b.date))
-  }, [transactionData])
+    return apiDailyRevenue.map(d => ({
+      date: d.date,
+      revenue: parseFloat(d.revenue)
+    }))
+  }, [apiDailyRevenue])
 
   // Event Profit Breakdown
   const eventProfitData = useMemo(() => {
-    return events
-      .map(e => {
-        const sold = e.capacity - e.ticketsLeft
-        const revenue = sold * e.price
-        const operationalCost = Math.round(revenue * 0.15)
-        const platformFee = Math.round(revenue * 0.08)
-        const profit = revenue - operationalCost - platformFee
-        return {
-          name: e.name,
-          category: e.category || 'N/A',
-          ticketsSold: sold,
-          capacity: e.capacity,
-          revenue,
-          operationalCost,
-          platformFee,
-          profit,
-          margin: revenue > 0 ? Math.round((profit / revenue) * 100) : 0,
-        }
-      })
-      .sort((a, b) => b.profit - a.profit)
-  }, [events])
+    let data = apiEventComparison.map(e => {
+      const revenue = parseFloat(e.total_revenue)
+      const operationalCost = Math.round(revenue * 0.15)
+      const platformFee = Math.round(revenue * 0.08)
+      const profit = revenue - operationalCost - platformFee
+      return {
+        name: e.title,
+        category: 'Event',
+        ticketsSold: e.tickets_sold,
+        capacity: e.total_capacity,
+        revenue,
+        operationalCost,
+        platformFee,
+        profit,
+        margin: revenue > 0 ? Math.round((profit / revenue) * 100) : 0,
+      }
+    })
+
+    if (selectedEventFilter) {
+      data = data.filter(d => d.name === selectedEventFilter)
+    }
+
+    return data.sort((a, b) => b.profit - a.profit)
+  }, [apiEventComparison, selectedEventFilter])
 
   // Refund/Cancellation Report
   const refundData = useMemo(() => {
-    return transactionData.filter(t => t.status === 'Refunded' || t.status === 'Cancelled')
+    return transactionData.filter((t: any) => t.status === 'Refunded' || t.status === 'Cancelled')
   }, [transactionData])
 
   // ==================== EXPORT FUNCTIONS ====================
@@ -114,13 +137,13 @@ export function AdminReportsPage() {
   const getActiveTableData = () => {
     switch (activeReport) {
       case 'transaction':
-        return { headers: ['Order ID', 'Date', 'Items', 'Total', 'Credits', 'Status'], rows: transactionData.map(t => [t.orderId, t.date, t.items, `CRD ${t.total.toLocaleString()}`, t.credits.toString(), t.status]) }
+        return { headers: ['Order ID', 'Date', 'Event', 'Total', 'Credits', 'Status'], rows: transactionData.map((t: any) => [t.orderId, t.date, t.items, `$ ${t.total.toLocaleString()}`, t.credits.toString(), t.status]) }
       case 'daily-revenue':
-        return { headers: ['Date', 'Revenue'], rows: dailyRevenueData.map(d => [d.date, `CRD ${d.revenue.toLocaleString()}`]) }
+        return { headers: ['Date', 'Revenue'], rows: dailyRevenueData.map(d => [d.date, `$ ${d.revenue.toLocaleString()}`]) }
       case 'event-profit':
-        return { headers: ['Event', 'Category', 'Sold', 'Revenue', 'Cost', 'Fee', 'Profit', 'Margin'], rows: eventProfitData.map(e => [e.name, e.category, `${e.ticketsSold}/${e.capacity}`, `CRD ${e.revenue.toLocaleString()}`, `CRD ${e.operationalCost.toLocaleString()}`, `CRD ${e.platformFee.toLocaleString()}`, `CRD ${e.profit.toLocaleString()}`, `${e.margin}%`]) }
+        return { headers: ['Event', 'Category', 'Sold', 'Revenue', 'Cost', 'Fee', 'Profit', 'Margin'], rows: eventProfitData.map(e => [e.name, e.category, `${e.ticketsSold}/${e.capacity}`, `$ ${e.revenue.toLocaleString()}`, `$ ${e.operationalCost.toLocaleString()}`, `$ ${e.platformFee.toLocaleString()}`, `$ ${e.profit.toLocaleString()}`, `${e.margin}%`]) }
       case 'refund':
-        return { headers: ['Order ID', 'Date', 'Items', 'Amount', 'Status'], rows: refundData.map(r => [r.orderId, r.date, r.items, `CRD ${r.total.toLocaleString()}`, r.status]) }
+        return { headers: ['Order ID', 'Date', 'Event', 'Amount', 'Status'], rows: refundData.map((r: any) => [r.orderId, r.date, r.items, `$ ${r.total.toLocaleString()}`, r.status]) }
     }
   }
 
@@ -158,11 +181,11 @@ export function AdminReportsPage() {
     doc.setFontSize(9)
     doc.setTextColor(80)
     if (activeReport === 'transaction') {
-      const totalRev = transactionData.filter(t => t.status === 'Completed').reduce((acc, t) => acc + t.total, 0)
-      doc.text(`Total Transactions: ${transactionData.length} | Total Revenue: CRD ${totalRev.toLocaleString()}`, 14, finalY)
+      const totalRev = transactionData.filter((t: any) => t.status === 'Completed').reduce((acc: number, t: any) => acc + t.total, 0)
+      doc.text(`Total Transactions: ${transactionData.length} | Total Revenue: $ ${totalRev.toLocaleString()}`, 14, finalY)
     } else if (activeReport === 'event-profit') {
       const totalProfit = eventProfitData.reduce((acc, e) => acc + e.profit, 0)
-      doc.text(`Total Profit: CRD ${totalProfit.toLocaleString()}`, 14, finalY)
+      doc.text(`Total Profit: $ ${totalProfit.toLocaleString()}`, 14, finalY)
     }
 
     doc.save(`vortex-${activeReport}-report.pdf`)
@@ -185,23 +208,44 @@ export function AdminReportsPage() {
     setShowExportMenu(false)
   }
 
-  const handleEmailExport = () => {
+  const handleEmailExport = async () => {
     if (!emailAddress || !emailAddress.includes('@')) return
 
-    // Simulate sending email (pure frontend)
     setIsSending(true)
+    const data = getActiveTableData()
+    const token = localStorage.getItem('vortex.auth.token') || localStorage.getItem('auth_token')
 
-    setTimeout(() => {
+    try {
+      const res = await fetch('/api/admin/reports/email', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          email: emailAddress,
+          report_type: activeReport,
+          headers: data.headers,
+          rows: data.rows
+        })
+      })
+
+      if (res.ok) {
+        setEmailSent(true)
+        setTimeout(() => {
+          setEmailSent(false)
+          setShowEmailModal(false)
+          setEmailAddress('')
+        }, 2500)
+      } else {
+        alert('Failed to send email.')
+      }
+    } catch (err) {
+      alert('Network error')
+    } finally {
       setIsSending(false)
-      setEmailSent(true)
-
-      // Auto-close after showing success
-      setTimeout(() => {
-        setEmailSent(false)
-        setShowEmailModal(false)
-        setEmailAddress('')
-      }, 2500)
-    }, 2000) // Simulate 2s network delay
+    }
   }
 
   // ==================== RENDER ====================
@@ -215,7 +259,10 @@ export function AdminReportsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-4xl font-semibold text-white tracking-tight drop-shadow-md">Reports</h1>
-          <p className="text-sm font-medium text-white/50 mt-1.5">Build custom reports and export data</p>
+          <p className="text-sm font-medium text-white/50 mt-1.5 flex items-center gap-2">
+            Build custom reports and export data
+            {isLoading && <span className="text-indigo-400 animate-pulse">(Connecting to live data...)</span>}
+          </p>
         </div>
         {/* Export Button */}
         <div className="relative">
@@ -273,7 +320,7 @@ export function AdminReportsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white/[0.02] backdrop-blur-[40px] border border-white/[0.08] rounded-[24px] p-5 shadow-[4px_12px_40px_-12px_rgba(0,0,0,0.3)] relative overflow-hidden">
+      <div className="bg-white/[0.02] backdrop-blur-[40px] border border-white/[0.08] rounded-[24px] p-5 shadow-[4px_12px_40px_-12px_rgba(0,0,0,0.3)] relative min-h-[90px] z-20">
         <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
         <div className="flex flex-col lg:flex-row gap-4 items-end">
           <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -299,8 +346,8 @@ export function AdminReportsPage() {
                 className="w-full bg-white/[0.05] border border-white/[0.1] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-white/30 transition-all [color-scheme:dark] appearance-none cursor-pointer"
               >
                 <option value="" className="bg-zinc-900">All Events</option>
-                {events.map(ev => (
-                  <option key={ev.id} value={ev.name} className="bg-zinc-900">{ev.name}</option>
+                {eventOptions.map((ev, i) => (
+                  <option key={i} value={ev} className="bg-zinc-900">{ev}</option>
                 ))}
               </select>
             </div>
@@ -345,7 +392,7 @@ export function AdminReportsPage() {
                       return (
                         <div className="bg-black/80 backdrop-blur-md border border-white/10 p-3 rounded-2xl shadow-xl text-xs">
                           <p className="text-white/60 font-semibold mb-1">{label}</p>
-                          <p className="font-mono font-bold text-indigo-300">CRD {payload[0].value.toLocaleString()}</p>
+                          <p className="font-mono font-bold text-indigo-300">$ {payload[0].value.toLocaleString()}</p>
                         </div>
                       )
                     }
@@ -376,7 +423,7 @@ export function AdminReportsPage() {
                         <div className="bg-black/80 backdrop-blur-md border border-white/10 p-3 rounded-2xl shadow-xl text-xs">
                           <p className="text-white/60 font-semibold mb-1">{label}</p>
                           {payload.map((p: any, i: number) => (
-                            <p key={i} className="font-mono font-bold" style={{ color: p.fill }}>{p.name}: CRD {p.value.toLocaleString()}</p>
+                            <p key={i} className="font-mono font-bold" style={{ color: p.fill }}>{p.name}: $ {p.value.toLocaleString()}</p>
                           ))}
                         </div>
                       )
@@ -407,14 +454,14 @@ export function AdminReportsPage() {
             <tbody className="divide-y divide-white/[0.05]">
               {tableData.rows.map((row, i) => (
                 <tr key={i} className="hover:bg-white/[0.03] transition-colors duration-300">
-                  {row.map((cell, j) => (
+                  {row.map((cell: any, j) => (
                     <td key={j} className={`p-5 text-sm whitespace-nowrap ${
                       j === 0 ? 'font-mono text-white/50 text-xs' :
-                      cell.startsWith('CRD') ? 'font-mono text-indigo-300' :
+                      (typeof cell === 'string' && cell.startsWith('$')) ? 'font-mono text-indigo-300' :
                       cell === 'Completed' ? 'text-emerald-400 font-semibold text-xs' :
                       cell === 'Refunded' ? 'text-amber-400 font-semibold text-xs' :
                       cell === 'Cancelled' ? 'text-rose-400 font-semibold text-xs' :
-                      cell.endsWith('%') ? 'font-mono text-white/70' :
+                      (typeof cell === 'string' && cell.endsWith('%')) ? 'font-mono text-white/70' :
                       'text-white/70'
                     }`}>
                       {cell === 'Completed' && <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2" />}
@@ -429,7 +476,7 @@ export function AdminReportsPage() {
                 <tr>
                   <td colSpan={tableData.headers.length} className="p-12 text-center">
                     <span className="material-symbols-outlined text-4xl text-white/10 mb-3 block">search_off</span>
-                    <p className="text-sm text-white/30">No records match current filters</p>
+                    <p className="text-sm text-white/30">{isLoading ? 'Loading live data...' : 'No records match current filters'}</p>
                   </td>
                 </tr>
               )}
@@ -443,8 +490,8 @@ export function AdminReportsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             { label: 'Total Transactions', value: transactionData.length.toString(), icon: 'receipt_long', color: 'text-indigo-300', bg: 'bg-indigo-500/20' },
-            { label: 'Total Revenue', value: `CRD ${transactionData.filter(t => t.status === 'Completed').reduce((acc, t) => acc + t.total, 0).toLocaleString()}`, icon: 'payments', color: 'text-emerald-300', bg: 'bg-emerald-500/20' },
-            { label: 'Credits Distributed', value: transactionData.filter(t => t.status === 'Completed').reduce((acc, t) => acc + t.credits, 0).toLocaleString(), icon: 'stars', color: 'text-amber-300', bg: 'bg-amber-500/20' },
+            { label: 'Total Revenue', value: `$ ${transactionData.filter((t: any) => t.status === 'Completed').reduce((acc: number, t: any) => acc + t.total, 0).toLocaleString()}`, icon: 'payments', color: 'text-emerald-300', bg: 'bg-emerald-500/20' },
+            { label: 'Credits Distributed', value: transactionData.filter((t: any) => t.status === 'Completed').reduce((acc: number, t: any) => acc + t.credits, 0).toLocaleString(), icon: 'stars', color: 'text-amber-300', bg: 'bg-amber-500/20' },
           ].map(stat => (
             <div key={stat.label} className="bg-white/[0.02] backdrop-blur-[40px] border border-white/[0.08] p-5 rounded-[24px] flex items-center gap-4 shadow-[4px_12px_40px_-12px_rgba(0,0,0,0.3)] relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
@@ -463,8 +510,8 @@ export function AdminReportsPage() {
       {activeReport === 'event-profit' && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { label: 'Total Revenue', value: `CRD ${eventProfitData.reduce((acc, e) => acc + e.revenue, 0).toLocaleString()}`, icon: 'payments', color: 'text-indigo-300', bg: 'bg-indigo-500/20' },
-            { label: 'Total Profit', value: `CRD ${eventProfitData.reduce((acc, e) => acc + e.profit, 0).toLocaleString()}`, icon: 'trending_up', color: 'text-emerald-300', bg: 'bg-emerald-500/20' },
+            { label: 'Total Revenue', value: `$ ${eventProfitData.reduce((acc, e) => acc + e.revenue, 0).toLocaleString()}`, icon: 'payments', color: 'text-indigo-300', bg: 'bg-indigo-500/20' },
+            { label: 'Total Profit', value: `$ ${eventProfitData.reduce((acc, e) => acc + e.profit, 0).toLocaleString()}`, icon: 'trending_up', color: 'text-emerald-300', bg: 'bg-emerald-500/20' },
             { label: 'Avg Margin', value: `${eventProfitData.length > 0 ? Math.round(eventProfitData.reduce((acc, e) => acc + e.margin, 0) / eventProfitData.length) : 0}%`, icon: 'percent', color: 'text-amber-300', bg: 'bg-amber-500/20' },
           ].map(stat => (
             <div key={stat.label} className="bg-white/[0.02] backdrop-blur-[40px] border border-white/[0.08] p-5 rounded-[24px] flex items-center gap-4 shadow-[4px_12px_40px_-12px_rgba(0,0,0,0.3)] relative overflow-hidden">
@@ -484,8 +531,8 @@ export function AdminReportsPage() {
       {activeReport === 'refund' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[
-            { label: 'Total Refunds', value: refundData.filter(r => r.status === 'Refunded').length.toString(), icon: 'undo', color: 'text-amber-300', bg: 'bg-amber-500/20' },
-            { label: 'Total Cancellations', value: refundData.filter(r => r.status === 'Cancelled').length.toString(), icon: 'cancel', color: 'text-rose-300', bg: 'bg-rose-500/20' },
+            { label: 'Total Refunds', value: refundData.filter((r: any) => r.status === 'Refunded').length.toString(), icon: 'undo', color: 'text-amber-300', bg: 'bg-amber-500/20' },
+            { label: 'Total Cancellations', value: refundData.filter((r: any) => r.status === 'Cancelled').length.toString(), icon: 'cancel', color: 'text-rose-300', bg: 'bg-rose-500/20' },
           ].map(stat => (
             <div key={stat.label} className="bg-white/[0.02] backdrop-blur-[40px] border border-white/[0.08] p-5 rounded-[24px] flex items-center gap-4 shadow-[4px_12px_40px_-12px_rgba(0,0,0,0.3)] relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />

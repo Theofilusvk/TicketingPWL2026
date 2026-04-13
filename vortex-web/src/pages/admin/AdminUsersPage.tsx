@@ -1,18 +1,118 @@
-import { useState } from 'react'
-import { useStore, type UserAccount } from '../../lib/store'
+import { useState, useEffect } from 'react'
+
+export interface ApiUserAccount {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  tier: string;
+  credits: number;
+  lastActive: string;
+}
 
 export function AdminUsersPage() {
-  const { users, updateUserTier, updateUserBalance, deleteUser } = useStore()
-  const [selectedUser, setSelectedUser] = useState<UserAccount | null>(null)
+  const [apiUsers, setApiUsers] = useState<ApiUserAccount[]>([])
+  const [selectedUser, setSelectedUser] = useState<ApiUserAccount | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   const tiers = ['PHANTOM', 'SQUIRE', 'KNIGHT', 'LORD', 'SOVEREIGN']
+
+  const fetchUsers = async () => {
+    setIsLoading(true)
+    try {
+      const token = localStorage.getItem('vortex.auth.token') || localStorage.getItem('auth_token')
+      const res = await fetch('/api/admin/users', {
+        headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const json = await res.json()
+        if (json.status === 'success') setApiUsers(json.data)
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchUsers()
+  }, [])
+
+  const handleUpdateTier = async (userId: string, newTier: string) => {
+    try {
+      const token = localStorage.getItem('vortex.auth.token') || localStorage.getItem('auth_token')
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PUT',
+        headers: { 
+          'Accept': 'application/json', 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ tier: newTier })
+      })
+      if (res.ok) {
+        if (selectedUser) setSelectedUser({ ...selectedUser, tier: newTier })
+        await fetchUsers()
+      }
+    } catch (err) {
+      alert('Network error')
+    }
+  }
+
+  const handleUpdateBalance = async (userId: string, adjustment: number) => {
+    try {
+      const token = localStorage.getItem('vortex.auth.token') || localStorage.getItem('auth_token')
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PUT',
+        headers: { 
+          'Accept': 'application/json', 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ credits_adjustment: adjustment })
+      })
+      if (res.ok) {
+        if (selectedUser) setSelectedUser({ ...selectedUser, credits: Math.max(0, selectedUser.credits + adjustment) })
+        await fetchUsers()
+      }
+    } catch (err) {
+      alert('Network error')
+    }
+  }
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to delete this user?')) return
+    try {
+      const token = localStorage.getItem('vortex.auth.token') || localStorage.getItem('auth_token')
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: { 
+          'Accept': 'application/json', 
+          'Authorization': `Bearer ${token}` 
+        }
+      })
+      if (res.ok) {
+        setSelectedUser(null)
+        await fetchUsers()
+      } else {
+        const err = await res.json()
+        alert(err.message || 'Could not delete user')
+      }
+    } catch (err) {
+      alert('Network error')
+    }
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-700 ease-out transition-all z-10 relative">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-4xl font-semibold text-white tracking-tight drop-shadow-md">Audience Intel</h1>
-          <p className="text-sm font-medium text-white/50 mt-1.5">Manage registered users, ranks, and CRD balances</p>
+          <p className="text-sm font-medium text-white/50 mt-1.5 flex items-center gap-2">
+            Manage registered users, ranks, and CRD balances
+            {isLoading && <span className="text-indigo-400 animate-pulse">(Connecting...)</span>}
+          </p>
         </div>
       </div>
 
@@ -30,11 +130,12 @@ export function AdminUsersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.05]">
-            {users.map((item) => (
+            {apiUsers.map((item) => (
               <tr key={item.id} className="hover:bg-white/[0.03] transition-colors duration-300 group">
                 <td className="p-5">
                   <div className="font-semibold text-sm text-white/90">{item.name}</div>
                   <div className="font-mono text-[10px] text-zinc-500 mt-1">{item.email}</div>
+                  {item.role === 'admin' && <span className="inline-flex mt-1 text-[8px] uppercase tracking-widest text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded">Admin</span>}
                 </td>
                 <td className="p-5">
                   <span className={`inline-flex px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full border backdrop-blur-md shadow-sm ${
@@ -54,13 +155,18 @@ export function AdminUsersPage() {
                     <button onClick={() => setSelectedUser(item)} className="bg-white/10 hover:bg-white/20 text-white rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors backdrop-blur-md border border-white/10">
                       Manage
                     </button>
-                    <button onClick={() => deleteUser(item.id)} className="text-zinc-500 hover:text-rose-400 p-1.5 transition-colors">
+                    <button onClick={() => handleDeleteUser(item.id)} className="text-zinc-500 hover:text-rose-400 p-1.5 transition-colors">
                       <span className="material-symbols-outlined text-[18px]">delete</span>
                     </button>
                   </div>
                 </td>
               </tr>
             ))}
+            {apiUsers.length === 0 && !isLoading && (
+              <tr>
+                <td colSpan={5} className="p-10 text-center text-white/30 text-sm">No users found.</td>
+              </tr>
+            )}
             </tbody>
           </table>
         </div>
@@ -81,7 +187,7 @@ export function AdminUsersPage() {
                   {tiers.map(t => (
                     <button 
                       key={t}
-                      onClick={() => { updateUserTier(selectedUser.id, t); setSelectedUser({...selectedUser, tier: t}) }}
+                      onClick={() => handleUpdateTier(selectedUser.id, t)}
                       className={`px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border transition-all ${selectedUser.tier === t ? 'bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(203,255,0,0.2)]' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`}
                     >
                       {t}
@@ -93,10 +199,10 @@ export function AdminUsersPage() {
               <div className="space-y-3">
                 <label className="text-[11px] font-semibold text-white/40 uppercase tracking-widest pl-1 border-b border-white/10 pb-2 flex">Adjust Balance (CRD)</label>
                 <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => { updateUserBalance(selectedUser.id, 10000); setSelectedUser({...selectedUser, credits: selectedUser.credits + 10000}) }} className="bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 py-3 rounded-xl text-xs font-bold font-mono transition-colors">
+                  <button onClick={() => handleUpdateBalance(selectedUser.id, 10000)} className="bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 py-3 rounded-xl text-xs font-bold font-mono transition-colors">
                     + 10,000 CRD
                   </button>
-                  <button onClick={() => { updateUserBalance(selectedUser.id, -10000); setSelectedUser({...selectedUser, credits: Math.max(0, selectedUser.credits - 10000)}) }} className="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 py-3 rounded-xl text-xs font-bold font-mono transition-colors">
+                  <button onClick={() => handleUpdateBalance(selectedUser.id, -10000)} className="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 py-3 rounded-xl text-xs font-bold font-mono transition-colors">
                     - 10,000 CRD
                   </button>
                 </div>

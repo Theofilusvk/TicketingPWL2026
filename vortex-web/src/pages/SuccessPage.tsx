@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef } from 'react'
-import { useLocation, Link } from 'react-router-dom'
+import { useLocation, Link, useSearchParams } from 'react-router-dom'
 import { ShareButton } from '../components/ShareButton'
 import { EmailModal } from '../components/EmailModal'
 import { useAudio } from '../lib/audio'
+import { useStore } from '../lib/store'
 
 // Confetti particle system
 function ConfettiCanvas() {
@@ -119,21 +120,80 @@ function AnimatedCheck() {
 
 export function SuccessPage() {
   const { playSuccessSound } = useAudio()
+  const { removeFromCart } = useStore()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
+  const urlOrderId = searchParams.get('orderId')
+  const [fetchedOrder, setFetchedOrder] = useState<any>(null)
+  const [isFetching, setIsFetching] = useState(!!urlOrderId)
+
   const [stage, setStage] = useState(0)
   const [showEmailModal, setShowEmailModal] = useState(false)
 
-  const orderData = location.state || {
-     orderId: 'VTX-99281-XC',
-     total: 249.00,
-     tickets: [{
-       id: 'VTX-99281-XC-1',
+  useEffect(() => {
+      let intervalId: number;
+
+      const fetchOrder = async () => {
+          if (!urlOrderId) return;
+          try {
+              const token = localStorage.getItem('vortex.auth.token');
+              const r = await fetch(`http://127.0.0.1:8000/api/orders/${urlOrderId}`, {
+                  headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+              });
+              const res = await r.json();
+              if (res.status === 'success') {
+                  setFetchedOrder(res.data);
+                  if (res.data.status === 'paid') {
+                      try {
+                          const pendingItemsStr = sessionStorage.getItem('vortex_checkout_pending_items');
+                          if (pendingItemsStr) {
+                              const pendingIds = JSON.parse(pendingItemsStr);
+                              pendingIds.forEach((id: string) => removeFromCart(id));
+                              sessionStorage.removeItem('vortex_checkout_pending_items');
+                          }
+                      } catch (e) {
+                          // Silently ignore storage errors to avoid wiping the cart
+                      }
+                      
+                      setIsFetching(false);
+                      if (intervalId) clearInterval(intervalId);
+                  }
+              }
+          } catch(e) {
+              console.error(e)
+          }
+      };
+
+      if (urlOrderId) {
+          fetchOrder(); // Initial fetch
+          intervalId = window.setInterval(() => {
+              if (isFetching) {
+                  fetchOrder();
+              }
+          }, 3000); // Poll every 3 seconds
+      } else {
+          setIsFetching(false);
+      }
+
+      return () => {
+          if (intervalId) clearInterval(intervalId);
+      }
+  }, [urlOrderId, isFetching]);
+
+  const rawState = location.state || {};
+  const orderData = fetchedOrder || {
+     ...rawState,
+     orderId: rawState.orderId || 'VTX-99281-XC',
+     total: rawState.total || 249.00,
+     tickets: rawState.tickets || (rawState.items ? rawState.items.map((i: any) => ({ ...i, eventName: i.title, date: 'N/A', tier: 'MERCHANDISE', id: i.id || 'MERCH-ITEM' })) : null) || [{
        eventName: 'NEON CHAOS 2025',
        date: '08.12.25',
        tier: 'VIP TIER'
      }]
   }
+
   useEffect(() => {
+    if (isFetching) return;
     playSuccessSound()
     const timers = [
       setTimeout(() => setStage(1), 300),
@@ -142,10 +202,14 @@ export function SuccessPage() {
       setTimeout(() => setStage(4), 1800),
     ]
     return () => timers.forEach(clearTimeout)
-  }, [])
+  }, [isFetching])
 
   const staggerClass = (s: number) =>
     `transition-all duration-700 ${stage >= s ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`
+
+  if (isFetching) {
+      return <div className="h-screen w-full flex items-center justify-center text-primary font-mono animate-pulse">VERIFYING_TRANSACTION...</div>
+  }
 
   return (
     <>
@@ -217,24 +281,32 @@ export function SuccessPage() {
                        <p className="font-accent text-primary/60 text-[10px] uppercase tracking-widest mb-1">
                          TOTAL_ORDER_PAID
                        </p>
-                       <p className="font-mono tracking-widest text-white text-3xl font-bold">${orderData.total.toFixed(2)}</p>
+                       <p className="font-mono tracking-widest text-white text-3xl font-bold">${Number(orderData.total).toFixed(2)}</p>
                      </div>
                    )}
                  </div>
                </div>
 
-               {/* INSTANT QR CODE REVEAL */}
-               <div className="border border-primary/30 p-4 bg-white/5 flex flex-col items-center">
-                 <p className="font-accent text-[8px] text-primary mb-3 tracking-widest uppercase">/ ACCESS_QR_CODE</p>
-                 <div className="bg-white p-2">
-                   <img 
-                     src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${ticket.id}`} 
-                     alt="TICKET QR" 
-                     className="mix-blend-multiply"
-                   />
+               {/* INSTANT QR CODE REVEAL OR MERCHANDISE TRACKING */}
+               {!orderData.isMerchandise ? (
+                 <div className="border border-primary/30 p-4 bg-white/5 flex flex-col items-center">
+                   <p className="font-accent text-[8px] text-primary mb-3 tracking-widest uppercase">/ ACCESS_QR_CODE</p>
+                   <div className="bg-white p-2">
+                     <img 
+                       src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${ticket.id}`} 
+                       alt="TICKET QR" 
+                       className="mix-blend-multiply"
+                     />
+                   </div>
+                   <p className="font-mono text-[8px] text-zinc-500 mt-2">SECURE SIGNATURE</p>
                  </div>
-                 <p className="font-mono text-[8px] text-zinc-500 mt-2">SECURE SIGNATURE</p>
-               </div>
+               ) : (
+                 <div className="border border-hot-coral/30 p-4 bg-white/5 flex flex-col items-center justify-center min-w-[150px]">
+                   <span className="material-symbols-outlined text-4xl text-hot-coral mb-3">local_shipping</span>
+                   <p className="font-accent text-[10px] text-hot-coral font-bold tracking-widest uppercase text-center">SHIPPING<br/>PENDING</p>
+                   <p className="font-mono text-[8px] text-zinc-500 mt-2 text-center">TRACKING NUMBER<br/>WILL BE EMAILED</p>
+                 </div>
+               )}
                
              </div>
           ))}
@@ -270,16 +342,38 @@ export function SuccessPage() {
                 <span className="font-accent text-[8px] text-zinc-500 tracking-widest uppercase">ACCESS_VAULT</span>
               </div>
             </Link>
-            <Link
-              to="/tickets"
-              className="flex items-center gap-4 p-5 border border-white/10 hover:border-hot-coral/50 hover:bg-hot-coral/5 transition-all group bg-black/40 hover:shadow-[0_0_20px_rgba(255,77,77,0.05)]"
+            <button
+              onClick={() => {
+                if (!urlOrderId) return;
+                const token = localStorage.getItem('vortex.auth.token');
+                fetch(`http://127.0.0.1:8000/api/orders/${urlOrderId}/download-pdf`, {
+                  headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/pdf' }
+                })
+                .then(res => res.blob())
+                .then(blob => {
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = (!orderData || !orderData.isMerchandise) ? `e-ticket-ORD-${urlOrderId}.pdf` : `invoice-ORD-${urlOrderId}.pdf`;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  window.URL.revokeObjectURL(url);
+                })
+                .catch(err => console.error('Download failed', err));
+              }}
+              className="flex items-center gap-4 p-5 border border-white/10 hover:border-hot-coral/50 hover:bg-hot-coral/5 transition-all group bg-black/40 hover:shadow-[0_0_20px_rgba(255,77,77,0.05)] text-left"
             >
-              <span className="material-symbols-outlined text-hot-coral text-xl group-hover:scale-110 transition-transform">qr_code_2</span>
+              <span className="material-symbols-outlined text-hot-coral text-xl group-hover:scale-110 transition-transform">
+                {(!orderData || !orderData.isMerchandise) ? 'qr_code_2' : 'receipt_long'}
+              </span>
               <div className="text-left flex flex-col">
-                <span className="font-display text-xl text-white group-hover:text-hot-coral transition-colors tracking-wide">DOWNLOAD QR</span>
+                <span className="font-display text-xl text-white group-hover:text-hot-coral transition-colors tracking-wide">
+                  {(!orderData || !orderData.isMerchandise) ? 'DOWNLOAD QR' : 'DOWNLOAD INVOICE'}
+                </span>
                 <span className="font-accent text-[8px] text-zinc-500 tracking-widest uppercase">PDF_EXPORT</span>
               </div>
-            </Link>
+            </button>
             <Link
               to="/events"
               className="flex items-center gap-4 p-5 border border-white/10 hover:border-primary/50 hover:bg-primary/5 transition-all group bg-black/40 hover:shadow-[0_0_20px_rgba(203,255,0,0.05)]"
@@ -313,10 +407,11 @@ export function SuccessPage() {
       <EmailModal
         isOpen={showEmailModal}
         onClose={() => setShowEmailModal(false)}
+        orderId={urlOrderId || undefined}
         ticketInfo={{
-          eventName: 'NEON CHAOS 2025',
-          ticketId: '#VTX-99281-XC',
-          tier: 'VIP TIER'
+          eventName: orderData.tickets?.[0]?.eventName || 'VORTEX EVENT',
+          ticketId: orderData.orderId || '#N/A',
+          tier: orderData.tickets?.[0]?.tier || 'GENERAL'
         }}
       />
     </>

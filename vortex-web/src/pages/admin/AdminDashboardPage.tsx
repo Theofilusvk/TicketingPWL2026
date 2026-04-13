@@ -1,44 +1,105 @@
 import { useState, useEffect } from 'react'
-import { useStore } from '../../lib/store'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 
 export function AdminDashboardPage() {
-  const { orderHistory, ownedTickets, users, events } = useStore()
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  // Derive real metrics from store + baselines for the aesthetic
+  // System Metrics
   const [metrics, setMetrics] = useState({
-    totalRevenue: orderHistory.reduce((acc, o) => acc + o.total, 145200),
-    ticketsSold: ownedTickets.length + 3450,
-    activeUsers: users.length + 890,
+    totalRevenue: 0,
+    ticketsSold: 0,
+    activeUsers: 890, // We can mock this since there is no live analytics for active users yet
     supportTickets: 12
   })
 
-  // Jitter for active users and live updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setMetrics(prev => ({
-        ...prev,
-        totalRevenue: orderHistory.reduce((acc, o) => acc + o.total, 145200),
-        ticketsSold: ownedTickets.length + 3450,
-        activeUsers: users.length + 890 + Math.floor(Math.random() * 5) - 2
-      }))
-    }, 3000)
-    return () => clearInterval(interval)
-  }, [orderHistory, ownedTickets, users])
+  // Real chart data from API
+  const [chartData, setChartData] = useState<any[]>([])
+  
+  // Real recent transactions from API
+  const [recentActivity, setRecentActivity] = useState<any[]>([])
 
-  const chartData = [
-    { name: 'Mon', revenue: 45000 },
-    { name: 'Tue', revenue: 60000 },
-    { name: 'Wed', revenue: 35000 },
-    { name: 'Thu', revenue: 80000 },
-    { name: 'Fri', revenue: 50000 },
-    { name: 'Sat', revenue: 105000 },
-    { name: 'Today', revenue: Math.max(120000, metrics.totalRevenue) },
-  ]
+  // Raw events for export
+  const [eventsData, setEventsData] = useState<any[]>([])
+  const [ordersData, setOrdersData] = useState<any[]>([])
+
+  useEffect(() => {
+    const token = localStorage.getItem('vortex.auth.token') || localStorage.getItem('auth_token')
+    if (!token) return
+
+    const headers: Record<string, string> = { 
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`
+    }
+
+    setLoading(true)
+
+    // Parallel fetch from multiple live endpoints
+    Promise.all([
+      fetch('/api/admin/analytics/revenue', { headers }).then(r => r.json()),
+      fetch('/api/admin/analytics/transactions?limit=5', { headers }).then(r => r.json()),
+      fetch('/api/admin/analytics/event-comparison', { headers }).then(r => r.json())
+    ])
+    .then(([revenueRes, transactionsRes, comparisonRes]) => {
+      let revenue = 0
+      let sold = 0
+      
+      if (revenueRes.status === 'success') {
+        revenue = revenueRes.data.summary.total_revenue;
+        
+        // Map daily revenue to chart format (Mon, Tue, Wed, etc)
+        const daily = revenueRes.data.daily_revenue || [];
+        // If daily is empty or has only 1 day, we can pad it for the visual chart
+        if (daily.length > 0) {
+          const formattedChart = daily.map((d: any) => {
+            const dateObj = new Date(d.date)
+            return {
+              name: dateObj.toLocaleDateString('en-US', { weekday: 'short' }),
+              revenue: parseFloat(d.revenue)
+            }
+          })
+          
+          // Pad to minimum 7 days if not enough data
+          while (formattedChart.length < 7) {
+            formattedChart.unshift({ name: '-', revenue: 0 })
+          }
+          setChartData(formattedChart.slice(-7))
+        }
+      }
+      
+      if (comparisonRes.status === 'success') {
+        setEventsData(comparisonRes.data)
+        sold = comparisonRes.data.reduce((acc: number, e: any) => acc + e.tickets_sold, 0)
+      }
+
+      if (transactionsRes.status === 'success') {
+        setOrdersData(transactionsRes.data.recent_transactions || [])
+        // Map recent transactions to Activity Log list
+        const activity = transactionsRes.data.recent_transactions?.slice(0, 5).map((t: any) => ({
+          time: new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          text: `Ticket checkout for Order #${t.order_id} completed`,
+          icon: 'confirmation_number',
+          colorClasses: 'bg-sky-500/20 border-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.6)]'
+        })) || []
+        
+        // Pad with mock system data if transactions are less than 5
+        setRecentActivity([...activity, { time: 'System', text: 'System diagnostics routine stable', icon: 'memory', colorClasses: 'bg-zinc-500/20 border-zinc-400 shadow-[0_0_12px_rgba(161,161,170,0.6)]' }])
+      }
+
+      setMetrics({
+        totalRevenue: revenue,
+        ticketsSold: sold,
+        activeUsers: 890 + Math.floor(Math.random() * 50), // mocked jitter
+        supportTickets: 12 // mocked value
+      })
+    })
+    .catch(err => console.error('Dashboard API Error:', err))
+    .finally(() => setLoading(false))
+
+  }, [])
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -46,7 +107,7 @@ export function AdminDashboardPage() {
         <div className="bg-black/60 backdrop-blur-md border border-white/10 p-4 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
           <p className="text-white/60 text-xs font-semibold uppercase tracking-widest mb-1">{label}</p>
           <p className="text-white font-mono font-bold text-lg">
-            CRD {payload[0].value.toLocaleString()}
+            $ {payload[0].value.toLocaleString()}
           </p>
         </div>
       )
@@ -61,21 +122,21 @@ export function AdminDashboardPage() {
     doc.setFontSize(10)
     doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30)
     doc.setFontSize(12)
-    doc.text(`Total Revenue: CRD ${metrics.totalRevenue.toLocaleString()}`, 14, 42)
+    doc.text(`Total Revenue: $ ${metrics.totalRevenue.toLocaleString()}`, 14, 42)
     doc.text(`Tickets Sold: ${metrics.ticketsSold.toLocaleString()}`, 14, 50)
     doc.text(`Active Users: ${metrics.activeUsers.toLocaleString()}`, 14, 58)
     doc.text(`Support Alerts: ${metrics.supportTickets}`, 14, 66)
     doc.setFontSize(14)
     doc.text('Event Summary', 14, 82)
-    const tableData = events.map(e => [
-      e.name, e.category || 'N/A', e.date, e.venue,
-      `${e.capacity - e.ticketsLeft}/${e.capacity}`,
-      `CRD ${((e.capacity - e.ticketsLeft) * e.price).toLocaleString()}`,
+    const tableData = eventsData.map(e => [
+      e.title, e.start_time,
+      `${e.tickets_sold}/${e.total_capacity}`,
+      `$ ${e.total_revenue.toLocaleString()}`,
       e.status
     ])
     autoTable(doc, {
       startY: 88,
-      head: [['Event', 'Category', 'Date', 'Venue', 'Tickets Sold', 'Revenue', 'Status']],
+      head: [['Event', 'Date', 'Tickets Sold', 'Revenue', 'Status']],
       body: tableData,
       theme: 'striped',
       headStyles: { fillColor: [99, 102, 241] },
@@ -85,28 +146,25 @@ export function AdminDashboardPage() {
   }
 
   const handleExportExcel = () => {
-    const eventsData = events.map(e => ({
-      'Event Name': e.name,
-      'Category': e.category || 'N/A',
-      'Date': e.date,
-      'Venue': e.venue,
-      'Capacity': e.capacity,
-      'Tickets Left': e.ticketsLeft,
-      'Tickets Sold': e.capacity - e.ticketsLeft,
-      'Price': e.price,
-      'Revenue': (e.capacity - e.ticketsLeft) * e.price,
+    const eventsExport = eventsData.map(e => ({
+      'Event Name': e.title,
+      'Date': e.start_time,
+      'Capacity': e.total_capacity,
+      'Tickets Sold': e.tickets_sold,
+      'Revenue': e.total_revenue,
       'Status': e.status,
     }))
-    const ordersData = orderHistory.map(o => ({
-      'Order ID': o.id,
-      'Date': new Date(o.date).toLocaleString(),
-      'Items': o.items.map(i => i.title).join(', '),
-      'Total': o.total,
-      'Credits Earned': o.creditsEarned,
+    const ordersExport = ordersData.map(o => ({
+      'Order ID': o.order_id,
+      'Date': new Date(o.created_at).toLocaleString(),
+      'Event': o.event_title || 'N/A',
+      'Total': o.total_price,
+      'Status': o.status,
+      'Payment Method': o.payment_method
     }))
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(eventsData), 'Events')
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ordersData), 'Orders')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(eventsExport), 'Events')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ordersExport), 'Orders')
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{
       'Total Revenue': metrics.totalRevenue,
       'Tickets Sold': metrics.ticketsSold,
@@ -122,7 +180,10 @@ export function AdminDashboardPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-4xl font-semibold text-white tracking-tight drop-shadow-md">System Overview</h1>
-          <p className="text-sm font-medium text-white/50 mt-1.5">Global platform metrics and status</p>
+          <p className="text-sm font-medium text-white/50 mt-1.5 flex items-center gap-2">
+            Global platform metrics and status
+            {loading && <span className="text-indigo-400 animate-pulse">(Connecting to live data...)</span>}
+          </p>
         </div>
         <div className="relative">
           <button
@@ -168,10 +229,10 @@ export function AdminDashboardPage() {
               <div className={`w-12 h-12 rounded-[20px] ${stat.bg} ${stat.glow} flex items-center justify-center shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] transition-transform duration-500 group-hover:scale-110`}>
                 <span className={`material-symbols-outlined text-[24px] ${stat.color}`}>{stat.icon}</span>
               </div>
-              <span className="text-xs font-semibold text-emerald-400 bg-emerald-400/10 px-2.5 py-1 rounded-full border border-emerald-400/20 backdrop-blur-md">+2.4%</span>
+              {/* <span className="text-xs font-semibold text-emerald-400 bg-emerald-400/10 px-2.5 py-1 rounded-full border border-emerald-400/20 backdrop-blur-md">+2.4%</span> */}
             </div>
             <div className="relative z-10 pt-2">
-              <p className="font-mono text-3xl font-semibold text-white tracking-tight drop-shadow-sm">{stat.label === 'Total Revenue' ? 'CRD ' : ''}{stat.value}</p>
+              <p className="font-mono text-3xl font-semibold text-white tracking-tight drop-shadow-sm">{stat.label === 'Total Revenue' ? '$ ' : ''}{stat.value}</p>
               <p className="text-sm font-medium text-white/50 mt-1">{stat.label}</p>
             </div>
           </div>
@@ -226,16 +287,10 @@ export function AdminDashboardPage() {
         <div className="bg-white/[0.02] backdrop-blur-[40px] border border-white/[0.08] p-8 rounded-[32px] shadow-[4px_12px_40px_-12px_rgba(0,0,0,0.3)] relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
           <h2 className="text-base font-semibold text-white/90 mb-8 tracking-wide">Live Activity Log</h2>
-          <div className="space-y-6">
-            {[
-              { time: 'Just now', text: `New user account verified`, icon: 'person_add', colorClasses: 'bg-emerald-500/20 border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)]' },
-              { time: '2m ago', text: `Ticket checkout for VOID_ZERO completed`, icon: 'confirmation_number', colorClasses: 'bg-sky-500/20 border-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.6)]' },
-              { time: '12m ago', text: `Merchandise drop stock depleted by 5%`, icon: 'sell', colorClasses: 'bg-indigo-500/20 border-indigo-400 shadow-[0_0_12px_rgba(99,102,241,0.6)]' },
-              { time: '1h ago', text: `News broadcast published globally`, icon: 'campaign', colorClasses: 'bg-amber-500/20 border-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.6)]' },
-              { time: '2h ago', text: 'System diagnostics routine stable', icon: 'memory', colorClasses: 'bg-zinc-500/20 border-zinc-400 shadow-[0_0_12px_rgba(161,161,170,0.6)]' }
-            ].map((log, i) => (
+          <div className="space-y-6 overflow-y-auto max-h-[300px] pr-2 custom-scrollbar">
+            {recentActivity.map((log, i) => (
               <div key={i} className="flex items-start gap-4 group cursor-default">
-                <div className={`w-3 h-3 rounded-full border mt-1.5 shrink-0 group-hover:scale-125 transition-transform duration-300 ${log.colorClasses}`} />
+                <div className={`w-3 h-3 rounded-full border mt-1.5 shrink-0 transition-transform duration-300 ${log.colorClasses}`} />
                 <div>
                   <p className="text-sm font-medium text-white/80">{log.text}</p>
                   <span className="text-xs font-medium text-white/40">{log.time}</span>

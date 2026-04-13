@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '../../lib/store'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -7,8 +7,31 @@ import {
 
 type ViewMode = 'detail' | 'summary'
 
+/* ── API response types ── */
+type ApiEventComparison = {
+  event_id: number
+  title: string
+  start_time: string
+  status: string
+  total_revenue: number
+  tickets_sold: number
+  total_capacity: number
+  occupancy_rate: number
+  refund_count: number
+  total_orders: number
+  refund_rate: number
+  trend: { month: string; monthly_revenue: number; monthly_orders: number }[]
+}
+
+type ApiRevenue = {
+  summary: { total_revenue: number; total_orders: number; avg_order_value: number }
+  revenue_per_event: { event_id: number; title: string; total_revenue: string; total_orders: number }[]
+  daily_revenue: { date: string; revenue: string; orders: number }[]
+  payment_method_breakdown: { method: string; gateway: string; total_amount: string; total_transactions: number }[]
+}
+
 export function AdminAnalyticsPage() {
-  const { events, orderHistory, ownedTickets } = useStore()
+  const { events } = useStore()
 
   // Filter state
   const [dateFrom, setDateFrom] = useState('')
@@ -17,86 +40,132 @@ export function AdminAnalyticsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('detail')
   const [showEventSelector, setShowEventSelector] = useState(false)
 
-  // Filtered events
-  const filteredEvents = useMemo(() => {
-    let result = events
+  // API data state
+  const [apiComparison, setApiComparison] = useState<ApiEventComparison[]>([])
+  const [apiRevenue, setApiRevenue] = useState<ApiRevenue | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  // Fetch data from backend
+  useEffect(() => {
+    const token = localStorage.getItem('vortex.auth.token') || localStorage.getItem('auth_token')
+
+    const headers: Record<string, string> = { Accept: 'application/json' }
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+
+    const params = new URLSearchParams()
+    if (dateFrom) params.set('date_from', dateFrom)
+    if (dateTo) params.set('date_to', dateTo)
+
+    setLoading(true)
+
+    Promise.all([
+      fetch(`/api/admin/analytics/event-comparison?${params}`, { headers }).then(r => r.json()),
+      fetch(`/api/admin/analytics/revenue?${params}`, { headers }).then(r => r.json()),
+    ])
+      .then(([compRes, revRes]) => {
+        if (compRes.status === 'success') setApiComparison(compRes.data)
+        if (revRes.status === 'success') setApiRevenue(revRes.data)
+      })
+      .catch(err => console.error('Analytics API error:', err))
+      .finally(() => setLoading(false))
+  }, [dateFrom, dateTo])
+
+  // Merge API data with store events for filtering
+  const filteredApiEvents = useMemo(() => {
+    let result = apiComparison
     if (selectedEvents.length > 0) {
-      result = result.filter(e => selectedEvents.includes(e.id))
-    }
-    if (dateFrom) {
-      result = result.filter(e => {
-        const d = e.date.replace(/_/g, '-')
-        return d >= dateFrom
-      })
-    }
-    if (dateTo) {
-      result = result.filter(e => {
-        const d = e.date.replace(/_/g, '-')
-        return d <= dateTo
-      })
+      result = result.filter(e => selectedEvents.includes(String(e.event_id)))
     }
     return result
-  }, [events, selectedEvents, dateFrom, dateTo])
+  }, [apiComparison, selectedEvents])
 
-  // Metrics
+  // Metrics from real API data
   const metrics = useMemo(() => {
-    const totalRevenue = filteredEvents.reduce((acc, e) => acc + (e.capacity - e.ticketsLeft) * e.price, 0) + (selectedEvents.length === 0 ? orderHistory.reduce((acc, o) => acc + o.total, 145200) : 0)
-    const ticketsSold = filteredEvents.reduce((acc, e) => acc + (e.capacity - e.ticketsLeft), 0) + (selectedEvents.length === 0 ? ownedTickets.length + 3450 : 0)
-    const totalCapacity = filteredEvents.reduce((acc, e) => acc + e.capacity, 0)
-    const avgTicketPrice = ticketsSold > 0 ? Math.round(totalRevenue / ticketsSold) : 0
-    const occupancyRate = totalCapacity > 0 ? Math.round((ticketsSold / totalCapacity) * 100) : 0
-    return { totalRevenue, ticketsSold, avgTicketPrice, occupancyRate, totalCapacity }
-  }, [filteredEvents, orderHistory, ownedTickets, selectedEvents])
+    if (filteredApiEvents.length > 0 && selectedEvents.length > 0) {
+      // Filtered by specific events
+      const totalRevenue = filteredApiEvents.reduce((acc, e) => acc + e.total_revenue, 0)
+      const ticketsSold = filteredApiEvents.reduce((acc, e) => acc + e.tickets_sold, 0)
+      const totalCapacity = filteredApiEvents.reduce((acc, e) => acc + e.total_capacity, 0)
+      const avgTicketPrice = ticketsSold > 0 ? Math.round(totalRevenue / ticketsSold) : 0
+      const occupancyRate = totalCapacity > 0 ? Math.round((ticketsSold / totalCapacity) * 100) : 0
+      return { totalRevenue, ticketsSold, avgTicketPrice, occupancyRate, totalCapacity }
+    }
+    // Use full summary from revenue API
+    if (apiRevenue) {
+      const totalRevenue = apiRevenue.summary.total_revenue
+      const totalOrders = apiRevenue.summary.total_orders
+      const ticketsSold = apiComparison.reduce((acc, e) => acc + e.tickets_sold, 0)
+      const totalCapacity = apiComparison.reduce((acc, e) => acc + e.total_capacity, 0)
+      const avgTicketPrice = ticketsSold > 0 ? Math.round(totalRevenue / ticketsSold) : 0
+      const occupancyRate = totalCapacity > 0 ? Math.round((ticketsSold / totalCapacity) * 100) : 0
+      return { totalRevenue, ticketsSold, avgTicketPrice, occupancyRate, totalCapacity, totalOrders }
+    }
+    return { totalRevenue: 0, ticketsSold: 0, avgTicketPrice: 0, occupancyRate: 0, totalCapacity: 0 }
+  }, [filteredApiEvents, apiRevenue, apiComparison, selectedEvents])
 
-  // Revenue by event (bar chart)
+  // Revenue by event (bar chart) — from API
   const revenueByEvent = useMemo(() => {
-    return filteredEvents
+    return filteredApiEvents
+      .filter(e => e.total_revenue > 0)
       .map(e => ({
-        name: e.name.length > 14 ? e.name.slice(0, 14) + '…' : e.name,
-        fullName: e.name,
-        revenue: (e.capacity - e.ticketsLeft) * e.price,
-        ticketsSold: e.capacity - e.ticketsLeft,
-        occupancy: Math.round(((e.capacity - e.ticketsLeft) / e.capacity) * 100),
+        name: e.title.length > 14 ? e.title.slice(0, 14) + '…' : e.title,
+        fullName: e.title,
+        revenue: e.total_revenue,
+        ticketsSold: e.tickets_sold,
+        occupancy: e.occupancy_rate,
       }))
       .sort((a, b) => b.revenue - a.revenue)
-  }, [filteredEvents])
+  }, [filteredApiEvents])
 
-  // Tickets sold vs available (pie chart)
+  // Tickets sold vs available (pie chart) — from API
   const ticketsPieData = useMemo(() => {
-    const totalSold = filteredEvents.reduce((acc, e) => acc + (e.capacity - e.ticketsLeft), 0)
-    const totalAvailable = filteredEvents.reduce((acc, e) => acc + e.ticketsLeft, 0)
+    const totalSold = filteredApiEvents.reduce((acc, e) => acc + e.tickets_sold, 0)
+    const totalAvailable = filteredApiEvents.reduce((acc, e) => acc + (e.total_capacity - e.tickets_sold), 0)
     return [
       { name: 'Sold', value: totalSold },
-      { name: 'Available', value: totalAvailable },
+      { name: 'Available', value: totalAvailable > 0 ? totalAvailable : 0 },
     ]
-  }, [filteredEvents])
+  }, [filteredApiEvents])
 
-  // Event performance comparison (line chart) - simulated monthly data
+  // Event performance comparison (line chart) — from API trend data
   const performanceComparison = useMemo(() => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
-    return months.map((month, i) => {
-      const entry: any = { month }
-      filteredEvents.slice(0, 5).forEach((event, j) => {
-        const baseSold = event.capacity - event.ticketsLeft
-        const factor = Math.sin((i + j) * 0.8) * 0.3 + 0.5
-        entry[event.name] = Math.round(baseSold * factor * event.price)
+    const monthMap: Record<string, any> = {}
+    filteredApiEvents.slice(0, 5).forEach(event => {
+      event.trend.forEach(t => {
+        if (!monthMap[t.month]) monthMap[t.month] = { month: t.month }
+        monthMap[t.month][event.title] = t.monthly_revenue
       })
-      return entry
     })
-  }, [filteredEvents])
+    return Object.values(monthMap).sort((a: any, b: any) => a.month.localeCompare(b.month))
+  }, [filteredApiEvents])
 
-  // Trending events (top 5 by occupancy)
+  // Trending events (top 5 by occupancy) — from API
   const trendingEvents = useMemo(() => {
-    return [...filteredEvents]
+    return [...filteredApiEvents]
       .map(e => ({
-        ...e,
-        sold: e.capacity - e.ticketsLeft,
-        occupancy: Math.round(((e.capacity - e.ticketsLeft) / e.capacity) * 100),
-        revenue: (e.capacity - e.ticketsLeft) * e.price,
+        id: String(e.event_id),
+        name: e.title,
+        occupancy: e.occupancy_rate,
+        revenue: e.total_revenue,
+        sold: e.tickets_sold,
+        // Try to get image from store events
+        image: events.find(ev => ev.name === e.title || ev.id === String(e.event_id))?.image || 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?auto=format&fit=crop&q=80&w=400',
+        status: e.status?.toUpperCase() || 'ACTIVE',
+        category: events.find(ev => ev.name === e.title)?.category || 'Event',
       }))
       .sort((a, b) => b.occupancy - a.occupancy)
       .slice(0, 5)
-  }, [filteredEvents])
+  }, [filteredApiEvents, events])
+
+  // Event list for filter selector — combine store events + API events
+  const eventList = useMemo(() => {
+    const apiEventList = apiComparison.map(e => ({ id: String(e.event_id), name: e.title }))
+    // Merge: prioritize API list
+    if (apiEventList.length > 0) return apiEventList
+    return events.map(e => ({ id: e.id, name: e.name }))
+  }, [apiComparison, events])
 
   const toggleEventSelection = (id: string) => {
     setSelectedEvents(prev =>
@@ -104,7 +173,6 @@ export function AdminAnalyticsPage() {
     )
   }
 
-  const COLORS = ['#818cf8', '#38bdf8', '#34d399', '#fbbf24', '#f472b6', '#a78bfa', '#fb923c', '#94a3b8']
   const PIE_COLORS = ['#818cf8', '#1e293b']
   const LINE_COLORS = ['#818cf8', '#38bdf8', '#34d399', '#fbbf24', '#f472b6']
 
@@ -131,6 +199,7 @@ export function AdminAnalyticsPage() {
         <div>
           <h1 className="text-4xl font-semibold text-white tracking-tight drop-shadow-md">Event Performance</h1>
           <p className="text-sm font-medium text-white/50 mt-1.5">Analytics dashboard for event metrics and revenue insights</p>
+          {loading && <p className="text-xs text-indigo-400 mt-1 animate-pulse">Loading live data from server...</p>}
         </div>
         {/* View Mode Toggle */}
         <div className="flex items-center gap-2 bg-white/[0.05] rounded-2xl p-1 border border-white/[0.08]">
@@ -151,7 +220,7 @@ export function AdminAnalyticsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white/[0.02] backdrop-blur-[40px] border border-white/[0.08] rounded-[24px] p-5 shadow-[4px_12px_40px_-12px_rgba(0,0,0,0.3)] relative overflow-hidden">
+      <div className="bg-white/[0.02] backdrop-blur-[40px] border border-white/[0.08] rounded-[24px] p-5 shadow-[4px_12px_40px_-12px_rgba(0,0,0,0.3)] relative min-h-[90px] z-20">
         <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
         <div className="flex flex-col lg:flex-row gap-4 items-end">
           <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -187,7 +256,7 @@ export function AdminAnalyticsPage() {
                     Clear All Filters
                   </button>
                 </div>
-                {events.map(event => (
+                {eventList.map(event => (
                   <button
                     key={event.id}
                     onClick={() => toggleEventSelection(event.id)}
@@ -222,10 +291,10 @@ export function AdminAnalyticsPage() {
       {/* Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Revenue', value: `CRD ${metrics.totalRevenue.toLocaleString()}`, icon: 'payments', color: 'text-indigo-300', bg: 'bg-indigo-500/20', glow: 'shadow-[0_0_20px_rgba(99,102,241,0.2)]', change: '+12.5%' },
-          { label: 'Tickets Sold', value: metrics.ticketsSold.toLocaleString(), icon: 'confirmation_number', color: 'text-sky-300', bg: 'bg-sky-500/20', glow: 'shadow-[0_0_20px_rgba(56,189,248,0.2)]', change: '+8.2%' },
-          { label: 'Avg Ticket Price', value: `CRD ${metrics.avgTicketPrice.toLocaleString()}`, icon: 'trending_up', color: 'text-emerald-300', bg: 'bg-emerald-500/20', glow: 'shadow-[0_0_20px_rgba(52,211,153,0.2)]', change: '+3.1%' },
-          { label: 'Occupancy Rate', value: `${metrics.occupancyRate}%`, icon: 'donut_large', color: 'text-amber-300', bg: 'bg-amber-500/20', glow: 'shadow-[0_0_20px_rgba(251,191,36,0.2)]', change: '+1.8%' },
+          { label: 'Total Revenue', value: `$ ${metrics.totalRevenue.toLocaleString()}`, icon: 'payments', color: 'text-indigo-300', bg: 'bg-indigo-500/20', glow: 'shadow-[0_0_20px_rgba(99,102,241,0.2)]', change: apiRevenue ? `${apiRevenue.summary.total_orders} orders` : '...' },
+          { label: 'Tickets Sold', value: metrics.ticketsSold.toLocaleString(), icon: 'confirmation_number', color: 'text-sky-300', bg: 'bg-sky-500/20', glow: 'shadow-[0_0_20px_rgba(56,189,248,0.2)]', change: `of ${metrics.totalCapacity.toLocaleString()}` },
+          { label: 'Avg Ticket Price', value: `$ ${metrics.avgTicketPrice.toLocaleString()}`, icon: 'trending_up', color: 'text-emerald-300', bg: 'bg-emerald-500/20', glow: 'shadow-[0_0_20px_rgba(52,211,153,0.2)]', change: 'per ticket' },
+          { label: 'Occupancy Rate', value: `${metrics.occupancyRate}%`, icon: 'donut_large', color: 'text-amber-300', bg: 'bg-amber-500/20', glow: 'shadow-[0_0_20px_rgba(251,191,36,0.2)]', change: 'capacity' },
         ].map(stat => (
           <div key={stat.label} className="bg-white/[0.02] backdrop-blur-[40px] border border-white/[0.08] p-6 rounded-[32px] flex flex-col gap-4 shadow-[4px_12px_40px_-12px_rgba(0,0,0,0.3)] hover:bg-white/[0.05] hover:scale-[1.02] transition-all duration-500 ease-out group relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
@@ -257,11 +326,11 @@ export function AdminAnalyticsPage() {
                   <YAxis stroke="rgba(255,255,255,0.3)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={v => `${v / 1000}k`} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend wrapperStyle={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)' }} />
-                  {filteredEvents.slice(0, 5).map((event, i) => (
+                  {filteredApiEvents.slice(0, 5).map((event, i) => (
                     <Line
-                      key={event.id}
+                      key={event.event_id}
                       type="monotone"
-                      dataKey={event.name}
+                      dataKey={event.title}
                       stroke={LINE_COLORS[i % LINE_COLORS.length]}
                       strokeWidth={2}
                       dot={{ r: 3, fill: LINE_COLORS[i % LINE_COLORS.length] }}
@@ -340,47 +409,40 @@ export function AdminAnalyticsPage() {
               <thead>
                 <tr className="border-b border-white/[0.05]">
                   <th className="p-5 text-[11px] font-semibold text-white/40 uppercase tracking-widest">Event</th>
-                  <th className="p-5 text-[11px] font-semibold text-white/40 uppercase tracking-widest">Category</th>
                   <th className="p-5 text-[11px] font-semibold text-white/40 uppercase tracking-widest">Tickets Sold</th>
                   <th className="p-5 text-[11px] font-semibold text-white/40 uppercase tracking-widest">Revenue</th>
                   <th className="p-5 text-[11px] font-semibold text-white/40 uppercase tracking-widest">Occupancy</th>
+                  <th className="p-5 text-[11px] font-semibold text-white/40 uppercase tracking-widest">Refund Rate</th>
                   <th className="p-5 text-[11px] font-semibold text-white/40 uppercase tracking-widest">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.05]">
-                {filteredEvents.map(event => {
-                  const sold = event.capacity - event.ticketsLeft
-                  const occ = Math.round((sold / event.capacity) * 100)
-                  const rev = sold * event.price
-                  return (
-                    <tr key={event.id} className="hover:bg-white/[0.03] transition-colors duration-300">
-                      <td className="p-5 font-semibold text-sm text-white/90">{event.name}</td>
-                      <td className="p-5">
-                        <span className="inline-flex px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest rounded-full border bg-white/5 text-white/60 border-white/10">{event.category}</span>
-                      </td>
-                      <td className="p-5 font-mono text-sm text-white/70">{sold.toLocaleString()}</td>
-                      <td className="p-5 font-mono text-sm text-indigo-300">CRD {rev.toLocaleString()}</td>
-                      <td className="p-5">
-                        <div className="flex items-center gap-3 max-w-[120px]">
-                          <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${occ >= 90 ? 'bg-rose-400' : occ >= 50 ? 'bg-amber-400' : 'bg-emerald-400'}`}
-                              style={{ width: `${occ}%` }}
-                            />
-                          </div>
-                          <span className="font-mono text-xs text-white/50">{occ}%</span>
+                {filteredApiEvents.map(event => (
+                  <tr key={event.event_id} className="hover:bg-white/[0.03] transition-colors duration-300">
+                    <td className="p-5 font-semibold text-sm text-white/90">{event.title}</td>
+                    <td className="p-5 font-mono text-sm text-white/70">{event.tickets_sold.toLocaleString()}</td>
+                    <td className="p-5 font-mono text-sm text-indigo-300">$ {event.total_revenue.toLocaleString()}</td>
+                    <td className="p-5">
+                      <div className="flex items-center gap-3 max-w-[120px]">
+                        <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${event.occupancy_rate >= 90 ? 'bg-rose-400' : event.occupancy_rate >= 50 ? 'bg-amber-400' : 'bg-emerald-400'}`}
+                            style={{ width: `${Math.min(event.occupancy_rate, 100)}%` }}
+                          />
                         </div>
-                      </td>
-                      <td className="p-5">
-                        <span className={`inline-flex px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full border ${
-                          event.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' :
-                          event.status === 'LOCKED' ? 'bg-rose-500/10 text-rose-300 border-rose-500/20' :
-                          'bg-white/5 text-white/50 border-white/10'
-                        }`}>{event.status}</span>
-                      </td>
-                    </tr>
-                  )
-                })}
+                        <span className="font-mono text-xs text-white/50">{event.occupancy_rate}%</span>
+                      </div>
+                    </td>
+                    <td className="p-5 font-mono text-sm text-white/50">{event.refund_rate}%</td>
+                    <td className="p-5">
+                      <span className={`inline-flex px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full border ${
+                        event.status === 'active' ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' :
+                        event.status === 'canceled' ? 'bg-rose-500/10 text-rose-300 border-rose-500/20' :
+                        'bg-white/5 text-white/50 border-white/10'
+                      }`}>{event.status}</span>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -410,7 +472,7 @@ export function AdminAnalyticsPage() {
               <div className="p-4">
                 <p className="text-sm font-semibold text-white/90 truncate">{event.name}</p>
                 <div className="flex items-center justify-between mt-2">
-                  <span className="font-mono text-xs text-indigo-300">CRD {event.revenue.toLocaleString()}</span>
+                  <span className="font-mono text-xs text-indigo-300">$ {event.revenue.toLocaleString()}</span>
                   <span className={`font-mono text-xs font-bold ${event.occupancy >= 80 ? 'text-rose-400' : event.occupancy >= 50 ? 'text-amber-400' : 'text-emerald-400'}`}>
                     {event.occupancy}%
                   </span>
@@ -422,7 +484,7 @@ export function AdminAnalyticsPage() {
                       event.occupancy >= 50 ? 'bg-gradient-to-r from-amber-500 to-yellow-500' :
                       'bg-gradient-to-r from-emerald-500 to-green-500'
                     }`}
-                    style={{ width: `${event.occupancy}%` }}
+                    style={{ width: `${Math.min(event.occupancy, 100)}%` }}
                   />
                 </div>
               </div>
@@ -430,7 +492,7 @@ export function AdminAnalyticsPage() {
           ))}
           {trendingEvents.length === 0 && (
             <div className="col-span-5 text-center py-12">
-              <p className="text-sm text-white/30">No events match current filters</p>
+              <p className="text-sm text-white/30">{loading ? 'Loading...' : 'No events match current filters'}</p>
             </div>
           )}
         </div>
