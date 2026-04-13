@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Navigate, Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../lib/auth'
+import { AdminPageLoader } from '../../components/AdminPageLoader'
 
 export function AdminLayout() {
   const { user, isAuthenticated, logout } = useAuth()
@@ -211,6 +212,8 @@ export function AdminLayout() {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#050505]">
+        {/* Admin Loading Bar */}
+        <AdminPageLoader />
         {/* Vibrant Background */}
         <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-indigo-500/20 rounded-full blur-[140px] pointer-events-none -translate-y-1/2" />
         <div className="absolute bottom-1/4 right-0 w-[500px] h-[500px] bg-purple-500/15 rounded-full blur-[140px] pointer-events-none translate-x-1/3" />

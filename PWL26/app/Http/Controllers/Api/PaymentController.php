@@ -44,7 +44,6 @@ class PaymentController extends Controller
                             'qr_code_path' => $qrPath,
                             'holder_name' => $assignment['name'] ?? null,
                             'holder_email' => $assignment['email'] ?? null,
-                            'holder_identity' => $assignment['identity'] ?? null,
                             'status' => 'available',
                             'created_at' => now(),
                             'updated_at' => now(),

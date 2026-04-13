@@ -204,12 +204,22 @@ export function Header() {
               </div>
             </>
           ) : !isLoginPage ? (
-            <Link
-              to="/login"
-              className="border-2 border-primary px-4 py-2 font-tag text-xs uppercase tracking-widest text-primary hover:bg-primary hover:text-black transition-colors"
-            >
-              Login
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                to="/login"
+                className="flex items-center gap-2 border-2 border-primary px-5 py-2 font-tag text-xs uppercase tracking-widest text-primary hover:bg-primary hover:text-black transition-all duration-300 group"
+              >
+                <span className="material-symbols-outlined text-[16px] group-hover:scale-110 transition-transform">login</span>
+                Login
+              </Link>
+              <Link
+                to="/login?mode=signup"
+                className="flex items-center gap-2 bg-primary px-5 py-2 font-tag text-xs uppercase tracking-widest text-black hover:brightness-110 transition-all duration-300 shadow-lg shadow-primary/20 group"
+              >
+                <span className="material-symbols-outlined text-[16px] group-hover:scale-110 transition-transform">person_add</span>
+                Sign Up
+              </Link>
+            </div>
           ) : null}
         </div>
       </div>

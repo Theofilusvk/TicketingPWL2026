@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useStore, type CartItem } from '../lib/store'
+import { useAuth } from '../lib/auth'
 
 
 export function ReservePage() {
   const { eventId } = useParams()
   const { events } = useStore()
+  const { user } = useAuth()
   const storeEvent = events.find((e) => e.id === eventId)
   
   const title = useMemo(() => {
@@ -31,7 +33,8 @@ export function ReservePage() {
     qty: number;
   } | null>(null)
   
-  const [assignmentData, setAssignmentData] = useState<{name: string, phone: string, email: string, identityNumber: string, dob: string}[]>([])
+  const [assignmentData, setAssignmentData] = useState<{name: string, phone: string, email: string, dob: string}[]>([])
+  const [useProfileForFirst, setUseProfileForFirst] = useState(true)
 
   const handleUpdateQuantity = (id: string, delta: number) => {
     setQuantities((prev) => ({
@@ -52,10 +55,16 @@ export function ReservePage() {
     }
 
     setPendingSelection({ tierId, title: itemTitle, phase, price, qty })
-    setAssignmentData(Array(qty).fill(null).map(() => ({ name: '', phone: '', email: '', identityNumber: '', dob: '' })))
+    // Auto-fill first ticket with profile data
+    setAssignmentData(Array(qty).fill(null).map((_, idx) => ({
+      name: (idx === 0 && useProfileForFirst && user?.displayName) ? user.displayName : '',
+      phone: '',
+      email: (idx === 0 && useProfileForFirst && user?.email) ? user.email : '',
+      dob: ''
+    })))
   }
 
-  const handleAssignmentChange = (index: number, field: 'name' | 'phone' | 'email' | 'identityNumber' | 'dob', value: string) => {
+  const handleAssignmentChange = (index: number, field: 'name' | 'phone' | 'email' | 'dob', value: string) => {
     setAssignmentData(prev => {
       const updated = [...prev]
       updated[index] = { ...updated[index], [field]: value }
@@ -67,7 +76,7 @@ export function ReservePage() {
     if (!pendingSelection) return
     
     // Validate all fields are somewhat filled
-    if (assignmentData.some(d => !d.name.trim() || !d.phone.trim() || !d.email.trim() || !d.identityNumber.trim() || !d.dob.trim())) {
+    if (assignmentData.some(d => !d.name.trim() || !d.phone.trim() || !d.email.trim() || !d.dob.trim())) {
       alert("Harap isi semua field data pemegang tiket untuk melanjutkan.")
       return
     }
@@ -76,12 +85,6 @@ export function ReservePage() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (assignmentData.some(d => !emailRegex.test(d.email))) {
       alert("Format email tidak valid. Periksa kembali.")
-      return
-    }
-
-    // NIK must be 16 digits
-    if (assignmentData.some(d => !/^\d{16}$/.test(d.identityNumber))) {
-      alert("NIK harus terdiri dari 16 digit angka.")
       return
     }
 
@@ -94,7 +97,6 @@ export function ReservePage() {
       assignedName: data.name,
       assignedPhone: data.phone,
       assignedEmail: data.email,
-      assignedIdentityNumber: data.identityNumber,
       assignedDob: data.dob,
       ticketId: `#VX-${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`
     }))
@@ -343,7 +345,37 @@ export function ReservePage() {
             <div className="space-y-6 mb-8">
               {assignmentData.map((data, idx) => (
                 <div key={idx} className="bg-black/40 border border-primary/20 p-4">
-                  <h3 className="font-display text-2xl text-white mb-4">TICKET {idx + 1}</h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-display text-2xl text-white">TICKET {idx + 1}</h3>
+                    {idx === 0 && user && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newVal = !useProfileForFirst
+                          setUseProfileForFirst(newVal)
+                          setAssignmentData(prev => {
+                            const updated = [...prev]
+                            updated[0] = {
+                              ...updated[0],
+                              name: newVal && user.displayName ? user.displayName : '',
+                              email: newVal && user.email ? user.email : '',
+                            }
+                            return updated
+                          })
+                        }}
+                        className={`flex items-center gap-2 px-3 py-1.5 text-[9px] font-accent uppercase tracking-widest border transition-all duration-300 ${
+                          useProfileForFirst
+                            ? 'bg-primary/20 border-primary/40 text-primary'
+                            : 'bg-white/5 border-zinc-700 text-zinc-400 hover:border-primary/30'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[14px]">
+                          {useProfileForFirst ? 'check_circle' : 'account_circle'}
+                        </span>
+                        {useProfileForFirst ? 'USING MY PROFILE' : 'USE MY PROFILE'}
+                      </button>
+                    )}
+                  </div>
                   <div className="flex flex-col gap-4">
                     <div>
                       <label className="block font-accent text-[10px] text-primary tracking-widest uppercase mb-1">
@@ -379,20 +411,6 @@ export function ReservePage() {
                         onChange={(e) => handleAssignmentChange(idx, 'phone', e.target.value)}
                         className="w-full bg-black/60 border border-zinc-700 text-white font-mono p-2 focus:outline-none focus:border-primary transition-colors focus:ring-1 focus:ring-primary"
                         placeholder="contoh: 08123456789"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-accent text-[10px] text-primary tracking-widest uppercase mb-1">
-                        NIK / NO. KTP
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={16}
-                        value={data.identityNumber}
-                        onChange={(e) => handleAssignmentChange(idx, 'identityNumber', e.target.value.replace(/\D/g, ''))}
-                        className="w-full bg-black/60 border border-zinc-700 text-white font-mono p-2 focus:outline-none focus:border-primary transition-colors focus:ring-1 focus:ring-primary"
-                        placeholder="16 digit NIK"
                       />
                     </div>
                     <div>
