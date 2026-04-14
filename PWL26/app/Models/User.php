@@ -53,4 +53,19 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function ticketTransfersOut()
+    {
+        return $this->hasMany(TicketTransfer::class, 'from_user_id', 'user_id');
+    }
+
+    public function ticketTransfersIn()
+    {
+        return $this->hasMany(TicketTransfer::class, 'to_user_id', 'user_id');
+    }
+
+    public function waitingLists()
+    {
+        return $this->hasMany(WaitingList::class, 'user_id', 'user_id');
+    }
 }

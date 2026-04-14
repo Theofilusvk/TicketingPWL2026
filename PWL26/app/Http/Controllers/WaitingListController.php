@@ -5,10 +5,110 @@ namespace App\Http\Controllers;
 use App\Models\WaitingList;
 use App\Models\Event;
 use App\Models\User;
+use App\Models\TicketType;
+use App\Services\TicketingService;
 use Illuminate\Http\Request;
 
 class WaitingListController extends Controller
 {
+    protected $ticketingService;
+
+    public function __construct(TicketingService $ticketingService)
+    {
+        $this->ticketingService = $ticketingService;
+    }
+
+    /**
+     * Get waiting list for event
+     */
+    public function byEvent(Event $event)
+    {
+        $waitingList = WaitingList::where('event_id', $event->event_id)
+            ->where('status', 'waiting')
+            ->with(['user', 'ticketType'])
+            ->orderBy('queue_position')
+            ->get();
+
+        return response()->json([
+            'event_id' => $event->event_id,
+            'total_waiting' => $waitingList->count(),
+            'list' => $waitingList,
+        ]);
+    }
+
+    /**
+     * Get user's waiting list entries
+     */
+    public function myWaitingList()
+    {
+        $userId = auth()->id();
+
+        $waitingList = WaitingList::where('user_id', $userId)
+            ->with(['event', 'ticketType'])
+            ->where('status', '!=', 'expired')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json($waitingList);
+    }
+
+    /**
+     * Add user to waiting list
+     */
+    public function joinWaitingList(Request $request)
+    {
+        $validated = $request->validate([
+            'event_id' => 'required|exists:events,event_id',
+            'ticket_type_id' => 'required|exists:ticket_types,ticket_type_id',
+            'preferred_price' => 'nullable|numeric|min:0',
+        ]);
+
+        $event = Event::findOrFail($validated['event_id']);
+
+        // Check if event is not sold out
+        if ($event->isSoldOut()) {
+            // Add to waiting list
+            $entry = $this->ticketingService->addToWaitingList(
+                auth()->id(),
+                $validated['event_id'],
+                $validated['ticket_type_id'],
+                $validated['preferred_price']
+            );
+
+            return response()->json([
+                'message' => 'Added to waiting list',
+                'queue_position' => $entry->queue_position,
+                'entry' => $entry,
+            ], 201);
+        }
+
+        return response()->json(['error' => 'Event not sold out'], 400);
+    }
+
+    /**
+     * Leave waiting list
+     */
+    public function leaveWaitingList(Request $request)
+    {
+        $validated = $request->validate([
+            'list_id' => 'required|exists:waiting_list,list_id',
+        ]);
+
+        $entry = WaitingList::findOrFail($validated['list_id']);
+
+        if ($entry->user_id != auth()->id()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        if ($entry->status !== 'waiting') {
+            return response()->json(['error' => 'Cannot leave this waiting list entry'], 400);
+        }
+
+        $entry->update(['status' => 'expired']);
+
+        return response()->json(['message' => 'Left waiting list']);
+    }
+
     /**
      * Display a listing of the resource.
      */

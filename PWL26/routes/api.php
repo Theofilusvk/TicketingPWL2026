@@ -14,6 +14,8 @@ use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\AdminUserController;
 use App\Http\Controllers\Api\AdminMerchandiseController;
 use App\Http\Controllers\Api\AdminReportController;
+use App\Http\Controllers\VenueSectionController;
+use App\Http\Controllers\TicketTransferController;
 
 // Public Auth
 Route::post('auth/register', [AuthController::class, 'register']);
@@ -71,11 +73,40 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('checkout/process', [CheckoutController::class, 'process']);
     Route::post('payment/checkout', [\App\Http\Controllers\Api\PaymentController::class, 'checkout']);
 
+    // Ticket Transfers
+    Route::get('ticket-transfers/my', [TicketTransferController::class, 'myTransfers']);
+    Route::get('ticket-transfers/pending', [TicketTransferController::class, 'pendingTransfers']);
+    Route::post('ticket-transfers/create', [TicketTransferController::class, 'createTransfer']);
+    Route::post('ticket-transfers/{transfer}/accept', [TicketTransferController::class, 'acceptTransfer']);
+    Route::post('ticket-transfers/{transfer}/reject', [TicketTransferController::class, 'rejectTransfer']);
+    Route::post('tickets/{ticket}/cancel', [TicketTransferController::class, 'cancelTicket']);
+
+    // Waiting List
+    Route::get('waiting-list/my', [\App\Http\Controllers\WaitingListController::class, 'myWaitingList']);
+    Route::post('waiting-list/join', [\App\Http\Controllers\WaitingListController::class, 'joinWaitingList']);
+    Route::post('waiting-list/leave', [\App\Http\Controllers\WaitingListController::class, 'leaveWaitingList']);
+
+    // Venue Sections - Read (Public for events)
+    Route::get('events/{event}/venue-map', [VenueSectionController::class, 'getVenueMap']);
+
     // Admin & Organizer Only Routes
     Route::middleware('role:admin,organizer')->group(function () {
         Route::apiResource('events', EventController::class)->except(['index', 'show']);
         Route::post('tickets/generate', [TicketController::class, 'generate']);
         Route::post('tickets/validate', [TicketController::class, 'validateTicket']);
+
+        // Venue Sections Management
+        Route::get('events/{event}/sections', [VenueSectionController::class, 'byEvent']);
+        Route::post('venue-sections', [VenueSectionController::class, 'store']);
+        Route::put('venue-sections/{section}', [VenueSectionController::class, 'update']);
+        Route::delete('venue-sections/{section}', [VenueSectionController::class, 'destroy']);
+
+        // Ticket Transfers - Admin view
+        Route::get('ticket-transfers', [TicketTransferController::class, 'index']);
+        Route::get('ticket-transfers/{transfer}', [TicketTransferController::class, 'show']);
+
+        // Waiting List - Admin view
+        Route::get('events/{event}/waiting-list', [\App\Http\Controllers\WaitingListController::class, 'byEvent']);
     });
 
     // Admin Only Routes
