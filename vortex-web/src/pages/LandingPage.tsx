@@ -3,12 +3,56 @@ import { Link } from 'react-router-dom'
 import gsap from 'gsap'
 import { ScrollToPlugin } from 'gsap/ScrollToPlugin'
 import { RotatingEarth } from '../components/RotatingEarth'
+import { Mic2, Headphones, PartyPopper, Ticket, Music4, Speaker } from 'lucide-react'
+import { useAuth } from '../lib/auth'
+
+function FloatingEventItems() {
+  const [scrollY, setScrollY] = useState(0)
+
+  useEffect(() => {
+    const handleScroll = () => setScrollY(window.scrollY)
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  const items = [
+    { Icon: Headphones, left: '8%', top: '25%', scale: 2.2, color: 'text-electric-lime', speed: -0.05, rotateSpeed: 0.05 },
+    { Icon: Mic2, left: '75%', top: '35%', scale: 2.5, color: 'text-hot-coral', speed: -0.08, rotateSpeed: -0.03 },
+    { Icon: PartyPopper, left: '15%', top: '85%', scale: 2.3, color: 'text-[#34d399]', speed: -0.06, rotateSpeed: 0.04 },
+    { Icon: Speaker, left: '85%', top: '75%', scale: 2.0, color: 'text-[#818cf8]', speed: -0.09, rotateSpeed: -0.02 },
+    { Icon: Ticket, left: '45%', top: '95%', scale: 2.8, color: 'text-white', speed: -0.12, rotateSpeed: 0.06 },
+    { Icon: Music4, left: '40%', top: '50%', scale: 1.8, color: 'text-electric-lime', speed: -0.04, rotateSpeed: -0.05 },
+  ]
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 opacity-40">
+      {items.map((item, i) => {
+        const yOffset = scrollY * item.speed
+        const rotOffset = scrollY * item.rotateSpeed
+        return (
+          <div
+            key={i}
+            className={`absolute ${item.color} drop-shadow-[0_0_25px_currentColor]`}
+            style={{
+              left: item.left,
+              top: item.top,
+              transform: `translate3d(0, ${yOffset}px, 0) rotate(${rotOffset}deg) scale(${item.scale})`,
+            }}
+          >
+            <item.Icon size={64} strokeWidth={2} />
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 export function LandingPage() {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const carouselRef = useRef<HTMLDivElement | null>(null)
   const scrollProgressRef = useRef<HTMLDivElement | null>(null)
   const rafRef = useRef<number | null>(null)
+  const { user, isAuthenticated } = useAuth()
 
   // Countdown timer
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
@@ -249,20 +293,40 @@ export function LandingPage() {
               </a>
             </div>
             <div className="flex items-center gap-3 ml-6">
-              <Link
-                to="/login"
-                className="flex items-center gap-2 border border-electric-lime/50 px-4 py-2 font-accent text-xs uppercase tracking-widest text-electric-lime hover:bg-electric-lime hover:text-dark-base transition-all duration-300"
-              >
-                <span className="material-symbols-outlined text-[14px]">login</span>
-                Login
-              </Link>
-              <Link
-                to="/login?mode=signup"
-                className="flex items-center gap-2 bg-electric-lime px-4 py-2 font-accent text-xs uppercase tracking-widest text-dark-base hover:brightness-110 transition-all duration-300 shadow-lg shadow-electric-lime/20"
-              >
-                <span className="material-symbols-outlined text-[14px]">person_add</span>
-                Register
-              </Link>
+              {isAuthenticated && user?.isAdmin ? (
+                <Link
+                  to="/admin"
+                  className="flex items-center gap-2 bg-electric-lime px-4 py-2 font-accent text-xs uppercase tracking-widest text-dark-base hover:brightness-110 transition-all duration-300 shadow-lg shadow-electric-lime/20"
+                >
+                  <span className="material-symbols-outlined text-[14px]">admin_panel_settings</span>
+                  Admin Panel
+                </Link>
+              ) : isAuthenticated ? (
+                <Link
+                  to="/events"
+                  className="flex items-center gap-2 bg-electric-lime px-4 py-2 font-accent text-xs uppercase tracking-widest text-dark-base hover:brightness-110 transition-all duration-300 shadow-lg shadow-electric-lime/20"
+                >
+                  <span className="material-symbols-outlined text-[14px]">confirmation_number</span>
+                  My Events
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    to="/login"
+                    className="flex items-center gap-2 border border-electric-lime/50 px-4 py-2 font-accent text-xs uppercase tracking-widest text-electric-lime hover:bg-electric-lime hover:text-dark-base transition-all duration-300"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">login</span>
+                    Login
+                  </Link>
+                  <Link
+                    to="/login?mode=signup"
+                    className="flex items-center gap-2 bg-electric-lime px-4 py-2 font-accent text-xs uppercase tracking-widest text-dark-base hover:brightness-110 transition-all duration-300 shadow-lg shadow-electric-lime/20"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">person_add</span>
+                    Register
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </nav>
@@ -316,11 +380,11 @@ export function LandingPage() {
                 ))}
               </div>
               <Link
-                to="/login"
+                to={isAuthenticated ? '/events' : '/login'}
                 className="inline-flex items-center justify-center bg-electric-lime text-dark-base px-8 py-3 rounded-full font-accent font-bold text-xs uppercase hover:scale-105 active:scale-95 transition-transform duration-200 shadow-lg shadow-electric-lime/20"
                 data-cursor-scale="2.6"
               >
-                RSVP NOW
+                {isAuthenticated ? 'BROWSE EVENTS' : 'RSVP NOW'}
               </Link>
             </div>
           </div>
@@ -337,8 +401,11 @@ export function LandingPage() {
         </div>
       </header>
 
-      <section className="py-32 px-6 bg-dark-base relative" id="events">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-4 reveal">
+      <section className="py-32 px-6 bg-dark-base relative overflow-hidden" id="events">
+        {/* Parallax animated items */}
+        <FloatingEventItems />
+
+        <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-4 reveal relative z-10">
           <h2 className="font-display text-7xl md:text-9xl uppercase leading-none">
             THE
             <br />
@@ -349,7 +416,7 @@ export function LandingPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-6 items-start">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-6 items-start relative z-10">
           <div className="md:col-span-4 group reveal">
             <div className="hover-lift bg-zinc-900 border border-zinc-800 p-4 aspect-[4/5] flex flex-col justify-between">
               <div className="relative overflow-hidden h-2/3 bg-gradient-to-br from-hot-coral to-purple-900">

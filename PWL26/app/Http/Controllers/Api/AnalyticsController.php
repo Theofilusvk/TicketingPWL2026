@@ -11,9 +11,9 @@ use Illuminate\Support\Facades\Log;
 class AnalyticsController extends Controller
 {
     /**
-     * Cache TTL in seconds (24 hours)
+     * Cache TTL in seconds (no cache for real-time reporting)
      */
-    private const CACHE_TTL = 86400;
+    private const CACHE_TTL = 0;
 
     /**
      * GET /api/admin/analytics/event-comparison
@@ -23,9 +23,8 @@ class AnalyticsController extends Controller
      */
     public function getEventComparison(Request $request)
     {
-        $cacheKey = 'analytics:event_comparison:' . md5($request->fullUrl());
-
-        $data = Cache::remember($cacheKey, self::CACHE_TTL, function () use ($request) {
+        // No cache - always return real-time data for reporting
+        $data = (function () use ($request) {
 
             // Base query: aggregate per event
             $query = DB::table('events')
@@ -105,7 +104,7 @@ class AnalyticsController extends Controller
             });
 
             return $result;
-        });
+        })();
 
         return response()->json([
             'status' => 'success',
@@ -121,9 +120,8 @@ class AnalyticsController extends Controller
      */
     public function getRevenueAnalytics(Request $request)
     {
-        $cacheKey = 'analytics:revenue:' . md5($request->fullUrl());
-
-        $data = Cache::remember($cacheKey, self::CACHE_TTL, function () use ($request) {
+        // No cache - always return real-time data for reporting
+        $data = (function () use ($request) {
 
             // --- 1) Revenue per event ---
             $revenuePerEvent = DB::table('orders')
@@ -194,7 +192,7 @@ class AnalyticsController extends Controller
                 'daily_revenue'          => $dailyRevenue,
                 'payment_method_breakdown' => $paymentMethodBreakdown,
             ];
-        });
+        })();
 
         return response()->json([
             'status' => 'success',
@@ -210,9 +208,8 @@ class AnalyticsController extends Controller
      */
     public function getTransactionMetrics(Request $request)
     {
-        $cacheKey = 'analytics:transactions:' . md5($request->fullUrl());
-
-        $data = Cache::remember($cacheKey, self::CACHE_TTL, function () use ($request) {
+        // No cache - always return real-time data for reporting
+        $data = (function () use ($request) {
 
             $query = DB::table('orders')
                 ->leftJoin('events', 'orders.event_id', '=', 'events.event_id')
@@ -288,7 +285,7 @@ class AnalyticsController extends Controller
                     'payments.payment_date'
                 )
                 ->orderByDesc('orders.created_at')
-                ->limit(20)
+                ->limit(200)
                 ->get();
 
             return [
@@ -297,7 +294,7 @@ class AnalyticsController extends Controller
                 'event_breakdown'     => $eventBreakdown,
                 'recent_transactions' => $recentTransactions,
             ];
-        });
+        })();
 
         return response()->json([
             'status' => 'success',

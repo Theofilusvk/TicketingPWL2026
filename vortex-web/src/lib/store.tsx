@@ -46,6 +46,7 @@ export type EventData = {
   id: string
   name: string
   date: string
+  endDate?: string
   category: EventCategory
   status: 'ACTIVE' | 'DRAFT' | 'LOCKED' | 'COMPLETED'
   ticketsLeft: number
@@ -222,6 +223,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               id: e.event_id.toString(),
               name: e.title,
               date: e.start_time ? e.start_time.split(' ')[0].replace(/-/g, '_') : 'TBA',
+              endDate: e.end_time ? e.end_time.split(' ')[0].replace(/-/g, '_') : undefined,
               category: e.category ? e.category.name : 'Lainnya',
               status: e.status ? e.status.toUpperCase() : 'ACTIVE',
               ticketsLeft: ticketTotalSupply,

@@ -84,6 +84,7 @@ export function AdminEventsPage() {
               id: String(e.event_id),
               name: e.title,
               date: e.start_time.split(' ')[0], // YYYY-MM-DD
+              endDate: e.end_time ? e.end_time.split(' ')[0] : undefined,
               category: e.category ? e.category.name : 'Unknown',
               status: e.status ? e.status.toUpperCase() : (new Date(e.start_time) < new Date() ? 'PAST' : 'ACTIVE'),
               capacity: totalStock > 0 ? totalStock : 500,
@@ -388,7 +389,12 @@ export function AdminEventsPage() {
                         {event.category || 'N/A'}
                       </span>
                     </td>
-                    <td className="p-5 text-sm font-medium text-white/60 font-mono">{event.date.replace(/_/g, '-')}</td>
+                    <td className="p-5 text-sm font-medium text-white/60 font-mono">
+                      {event.date.replace(/_/g, '-')}
+                      {event.endDate && event.endDate !== event.date && (
+                        <span className="text-white/30"> — {event.endDate}</span>
+                      )}
+                    </td>
                     <td className="p-5">
                       <div className="flex items-center gap-3 max-w-[150px]">
                         <div className="flex-1 h-1.5 bg-white/10 border border-white/5 rounded-full relative overflow-hidden shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]">
@@ -471,7 +477,12 @@ export function AdminEventsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-white/[0.03] rounded-2xl p-4 border border-white/[0.06]">
                     <p className="text-[10px] uppercase tracking-widest text-white/30 font-semibold">Date</p>
-                    <p className="text-sm text-white/80 font-mono mt-1">{detailEvent.date.replace(/_/g, '-')}</p>
+                    <p className="text-sm text-white/80 font-mono mt-1">
+                      {detailEvent.date.replace(/_/g, '-')}
+                      {detailEvent.endDate && detailEvent.endDate !== detailEvent.date && (
+                        <span className="text-white/40"> — {detailEvent.endDate}</span>
+                      )}
+                    </p>
                   </div>
                   <div className="bg-white/[0.03] rounded-2xl p-4 border border-white/[0.06]">
                     <p className="text-[10px] uppercase tracking-widest text-white/30 font-semibold">Category</p>

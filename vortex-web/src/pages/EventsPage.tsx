@@ -126,7 +126,7 @@ export function EventsPage() {
                     {/* Header: date + status badge */}
                     <div className="flex justify-between items-start mb-2">
                       <span className="font-accent text-[10px] text-zinc-500 uppercase tracking-widest">
-                        {e.date} // {e.venue}
+                        {e.date.replace(/_/g, '-')}{e.endDate && e.endDate !== e.date ? ` — ${e.endDate.replace(/_/g, '-')}` : ''} // {e.venue}
                       </span>
                       {isLocked ? (
                         <div className="bg-zinc-800 text-zinc-400 font-accent text-[8px] uppercase tracking-widest px-3 py-1 ml-4 whitespace-nowrap shrink-0">
