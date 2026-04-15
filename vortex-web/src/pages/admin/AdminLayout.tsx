@@ -135,9 +135,6 @@ export function AdminLayout() {
                   >
                     <span className={`material-symbols-outlined text-[20px] transition-colors duration-300 ${isActive ? 'text-white' : 'text-white/40'}`}>{item.icon}</span>
                     <span className="tracking-tight">{item.label}</span>
-                    {item.label === 'Notifications' && (
-                      <span className="ml-auto w-5 h-5 rounded-full bg-rose-500/20 text-rose-400 text-[9px] font-bold flex items-center justify-center">3</span>
-                    )}
                   </Link>
                 )
               })}

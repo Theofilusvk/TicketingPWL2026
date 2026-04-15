@@ -1,9 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
+import { useAuth } from '../../lib/auth'
 import { useStore, type Ticket } from '../../lib/store'
 import { useAudio } from '../../lib/audio'
 
+interface OrganizerEvent {
+  event_organizer_id: number
+  event_id: number
+  event_title: string
+  referral_code: string
+  notes?: string
+}
+
 export function AdminScannerPage() {
+  const { user } = useAuth()
   const { ownedTickets } = useStore()
   const { playHoverSound, playClickSound } = useAudio()
   
@@ -11,10 +21,45 @@ export function AdminScannerPage() {
   const [scanResult, setScanResult] = useState<{ status: 'IDLE' | 'SUCCESS' | 'ERROR' | 'WARNING'; message: string; ticket?: Ticket }>({ status: 'IDLE', message: '' })
   const [isScanning, setIsScanning] = useState(false)
   const [cameraActive, setCameraActive] = useState(false)
+  const [organizerEvents, setOrganizerEvents] = useState<OrganizerEvent[]>([])
+  const [selectedEventId, setSelectedEventId] = useState<string>('')
+  const [referralCode, setReferralCode] = useState('')
   
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null)
   const qrcodeRegionId = "html5qr-code-full-region"
   const processingRef = useRef(false) // Prevent duplicate processing
+
+  // Fetch organizer events if user is organizer
+  useEffect(() => {
+    if (user?.role === 'organizer') {
+      fetchOrganizerEvents()
+    }
+  }, [user])
+
+  const fetchOrganizerEvents = async () => {
+    try {
+      const token = localStorage.getItem('vortex.auth.token')
+      const response = await fetch('/api/organizer/events', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
+      setOrganizerEvents(data || [])
+      if (data.length > 0) {
+        setSelectedEventId(data[0].event_id.toString())
+        setReferralCode(data[0].referral_code)
+      }
+    } catch (err) {
+      console.error('Failed to fetch organizer events:', err)
+    }
+  }
+
+  const handleEventSelect = (eventId: string) => {
+    setSelectedEventId(eventId)
+    const event = organizerEvents.find(e => e.event_id.toString() === eventId)
+    if (event) {
+      setReferralCode(event.referral_code)
+    }
+  }
 
   const processTicket = async (code: string) => {
     if (processingRef.current) return;
@@ -149,6 +194,37 @@ export function AdminScannerPage() {
           <p className="text-sm font-medium text-white/50 mt-1.5">Event admission and QR ticket scanning interface</p>
         </div>
       </div>
+
+      {/* Organizer Event Selector */}
+      {user?.role === 'organizer' && organizerEvents.length > 0 && (
+        <div className="bg-white/[0.02] backdrop-blur-[40px] border border-white/[0.08] p-6 rounded-[32px] shadow-[4px_12px_40px_-12px_rgba(0,0,0,0.3)] space-y-4">
+          <h2 className="text-lg font-semibold text-white tracking-tight">Your Assigned Events</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {organizerEvents.map((event) => (
+              <button
+                key={event.event_organizer_id}
+                onClick={() => handleEventSelect(event.event_id.toString())}
+                className={`p-4 rounded-xl border-2 transition-all duration-300 text-left ${
+                  selectedEventId === event.event_id.toString()
+                    ? 'border-primary bg-primary/10'
+                    : 'border-white/[0.1] bg-white/[0.02] hover:border-primary/50 hover:bg-primary/5'
+                }`}
+              >
+                <div className="flex flex-col justify-between h-full">
+                  <div>
+                    <h3 className="font-semibold text-white mb-2">{event.event_title}</h3>
+                    <p className="text-xs text-white/60 mb-2">Referral Code:</p>
+                    <code className="text-sm font-mono text-primary bg-black/30 px-2 py-1 rounded">{event.referral_code}</code>
+                  </div>
+                  {event.notes && (
+                    <p className="text-xs text-white/50 mt-2 italic">{event.notes}</p>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10 items-start">
         

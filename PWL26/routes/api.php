@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\AdminUserController;
 use App\Http\Controllers\Api\AdminMerchandiseController;
 use App\Http\Controllers\Api\AdminReportController;
+use App\Http\Controllers\Api\EventOrganizerController;
 use App\Http\Controllers\VenueSectionController;
 use App\Http\Controllers\TicketTransferController;
 
@@ -140,6 +141,18 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Admin Reports Management
         Route::post('admin/reports/email', [AdminReportController::class, 'sendEmailReport']);
+
+        // Event Organizer Management (Admin only)
+        Route::post('admin/event-organizers/assign', [EventOrganizerController::class, 'assign']);
+        Route::delete('admin/event-organizers/{eventOrganizer}', [EventOrganizerController::class, 'unassign']);
+        Route::get('admin/events/{event}/organizers', [EventOrganizerController::class, 'eventAssignments']);
+        Route::put('admin/event-organizers/{eventOrganizer}/regenerate-code', [EventOrganizerController::class, 'regenerateCode']);
     });
 
-});
+    // Organizer Routes
+    Route::middleware('role:organizer')->group(function () {
+        Route::get('organizer/events', [EventOrganizerController::class, 'myEvents']);
+    });
+
+    // Public route for referral code lookup (needed for QR code scanning)
+    Route::get('event-organizers/code/{code}', [EventOrganizerController::class, 'getByCode']);
