@@ -1,6 +1,7 @@
 import { useParams, Link } from 'react-router-dom'
 import { ShareButton } from '../components/ShareButton'
 import { VenueMap } from '../components/VenueMap'
+import { VenueMapDisplay } from '../components/VenueMapDisplay'
 import { useState, useEffect, useCallback } from 'react'
 import { AudioPreview } from '../components/AudioPreview'
 import { useStore } from '../lib/store'
@@ -256,15 +257,6 @@ export function EventDetailPage() {
                 LOCKED
               </button>
             )}
-            
-            {/* LIVE CHAT LINK */}
-            <Link
-              to={`/chat/${event.id}`}
-              className="inline-flex items-center gap-2 border border-primary text-primary hover:bg-primary hover:text-black px-8 py-4 font-accent font-bold text-xs uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(203,255,0,0.1)] hover:shadow-[0_0_25px_rgba(203,255,0,0.3)]"
-            >
-              <span className="material-symbols-outlined text-sm animate-pulse">chat</span>
-              ENTER LIVE CHAT
-            </Link>
           </div>
         </div>
       </section>
@@ -322,6 +314,13 @@ export function EventDetailPage() {
       {!isLocked && (
         <section className="reveal">
           <VenueMap />
+        </section>
+      )}
+
+      {/* Venue Map Display with Ticket Data */}
+      {!isLocked && (
+        <section className="reveal">
+          <VenueMapDisplay />
         </section>
       )}
 

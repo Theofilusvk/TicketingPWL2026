@@ -224,28 +224,46 @@ export function LandingPage() {
       <header className="relative min-h-screen flex flex-col grid-bg" id="hero">
         <nav className="w-full p-6 flex justify-between items-center z-50">
           <div className="font-display text-4xl tracking-tighter text-electric-lime">VORTEX</div>
-          <div className="space-x-8 font-accent text-xs uppercase hidden md:flex">
-            <a
-              className="hover:text-electric-lime transition-colors"
-              href="#events"
-              data-cursor-scale="2.8"
-            >
-              / Events
-            </a>
-            <a
-              className="hover:text-electric-lime transition-colors"
-              href="#how"
-              data-cursor-scale="2.8"
-            >
-              / Guide
-            </a>
-            <a
-              className="hover:text-electric-lime transition-colors text-hot-coral"
-              href="#join"
-              data-cursor-scale="2.8"
-            >
-              / Join Collective
-            </a>
+          <div className="hidden md:flex items-center gap-6">
+            <div className="space-x-8 font-accent text-xs uppercase">
+              <a
+                className="hover:text-electric-lime transition-colors"
+                href="#events"
+                data-cursor-scale="2.8"
+              >
+                / Events
+              </a>
+              <a
+                className="hover:text-electric-lime transition-colors"
+                href="#how"
+                data-cursor-scale="2.8"
+              >
+                / Guide
+              </a>
+              <a
+                className="hover:text-electric-lime transition-colors text-hot-coral"
+                href="#join"
+                data-cursor-scale="2.8"
+              >
+                / Join Collective
+              </a>
+            </div>
+            <div className="flex items-center gap-3 ml-6">
+              <Link
+                to="/login"
+                className="flex items-center gap-2 border border-electric-lime/50 px-4 py-2 font-accent text-xs uppercase tracking-widest text-electric-lime hover:bg-electric-lime hover:text-dark-base transition-all duration-300"
+              >
+                <span className="material-symbols-outlined text-[14px]">login</span>
+                Login
+              </Link>
+              <Link
+                to="/login?mode=signup"
+                className="flex items-center gap-2 bg-electric-lime px-4 py-2 font-accent text-xs uppercase tracking-widest text-dark-base hover:brightness-110 transition-all duration-300 shadow-lg shadow-electric-lime/20"
+              >
+                <span className="material-symbols-outlined text-[14px]">person_add</span>
+                Register
+              </Link>
+            </div>
           </div>
         </nav>
 

@@ -9,7 +9,7 @@ class WaitingList extends Model
     protected $table = 'waiting_list';
     protected $primaryKey = 'list_id';
     public $timestamps = true;
-    protected $fillable = ['event_id', 'user_id', 'ticket_type_id', 'status'];
+    protected $fillable = ['event_id', 'user_id', 'ticket_type_id', 'status', 'queue_position', 'preferred_price'];
     
     public function event()
     {

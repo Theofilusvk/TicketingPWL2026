@@ -35,4 +35,29 @@ class Event extends Model
     {
         return $this->hasMany(TicketType::class, 'event_id', 'event_id');
     }
+
+    public function venueSections()
+    {
+        return $this->hasMany(VenueSection::class, 'event_id', 'event_id');
+    }
+
+    public function waitingLists()
+    {
+        return $this->hasMany(WaitingList::class, 'event_id', 'event_id');
+    }
+
+    // Check if event is sold out
+    public function isSoldOut()
+    {
+        if (!$this->venue_capacity) {
+            return false;
+        }
+        return $this->total_sold >= $this->venue_capacity;
+    }
+
+    // Get available capacity
+    public function getAvailableCapacityAttribute()
+    {
+        return $this->venue_capacity ? max(0, $this->venue_capacity - $this->total_sold) : 0;
+    }
 }

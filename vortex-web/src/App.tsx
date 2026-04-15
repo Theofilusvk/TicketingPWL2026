@@ -15,6 +15,7 @@ const ReservePage = lazy(() => import('./pages/ReservePage').then(module => ({ d
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then(module => ({ default: module.SettingsPage })))
 const SuccessPage = lazy(() => import('./pages/SuccessPage').then(module => ({ default: module.SuccessPage })))
 const TicketsPage = lazy(() => import('./pages/TicketsPage').then(module => ({ default: module.TicketsPage })))
+const MyEventsPage = lazy(() => import('./pages/MyEventsPage').then(module => ({ default: module.MyEventsPage })))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(module => ({ default: module.NotFoundPage })))
 const EventDetailPage = lazy(() => import('./pages/EventDetailPage').then(module => ({ default: module.EventDetailPage })))
 const TicketDetailPage = lazy(() => import('./pages/TicketDetailPage').then(module => ({ default: module.TicketDetailPage })))
@@ -111,6 +112,14 @@ export function App() {
               element={
                 <RequireAuth>
                   <TicketsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/my-events"
+              element={
+                <RequireAuth>
+                  <MyEventsPage />
                 </RequireAuth>
               }
             />

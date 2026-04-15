@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 
 export function AdminDashboardPage() {
+  const navigate = useNavigate()
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -216,12 +218,16 @@ export function AdminDashboardPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Revenue', value: `${metrics.totalRevenue.toLocaleString()}`, icon: 'payments', color: 'text-indigo-300', bg: 'bg-indigo-500/20', glow: 'shadow-[0_0_20px_rgba(99,102,241,0.2)]' },
-          { label: 'Tickets Issued', value: metrics.ticketsSold.toLocaleString(), icon: 'confirmation_number', color: 'text-sky-300', bg: 'bg-sky-500/20', glow: 'shadow-[0_0_20px_rgba(56,189,248,0.2)]' },
-          { label: 'Active Connections', value: metrics.activeUsers.toLocaleString(), icon: 'podcasts', color: 'text-emerald-300', bg: 'bg-emerald-500/20', glow: 'shadow-[0_0_20px_rgba(52,211,153,0.2)]' },
-          { label: 'Support Alerts', value: metrics.supportTickets, icon: 'warning', color: 'text-rose-300', bg: 'bg-rose-500/20', glow: 'shadow-[0_0_20px_rgba(251,113,133,0.2)]' },
+          { label: 'Total Revenue', value: `${metrics.totalRevenue.toLocaleString()}`, icon: 'payments', color: 'text-indigo-300', bg: 'bg-indigo-500/20', glow: 'shadow-[0_0_20px_rgba(99,102,241,0.2)]', route: '/admin/analytics' },
+          { label: 'Tickets Issued', value: metrics.ticketsSold.toLocaleString(), icon: 'confirmation_number', color: 'text-sky-300', bg: 'bg-sky-500/20', glow: 'shadow-[0_0_20px_rgba(56,189,248,0.2)]', route: '/admin/events' },
+          { label: 'Active Connections', value: metrics.activeUsers.toLocaleString(), icon: 'podcasts', color: 'text-emerald-300', bg: 'bg-emerald-500/20', glow: 'shadow-[0_0_20px_rgba(52,211,153,0.2)]', route: '/admin/users' },
+          { label: 'Support Alerts', value: metrics.supportTickets, icon: 'warning', color: 'text-rose-300', bg: 'bg-rose-500/20', glow: 'shadow-[0_0_20px_rgba(251,113,133,0.2)]', route: '/admin/reports' },
         ].map(stat => (
-          <div key={stat.label} className="bg-white/[0.02] backdrop-blur-[40px] border border-white/[0.08] p-6 rounded-[32px] flex flex-col gap-4 shadow-[4px_12px_40px_-12px_rgba(0,0,0,0.3)] hover:bg-white/[0.05] hover:scale-[1.02] transition-all duration-500 ease-out group relative overflow-hidden">
+          <div
+            key={stat.label}
+            onClick={() => navigate(stat.route)}
+            className="bg-white/[0.02] backdrop-blur-[40px] border border-white/[0.08] p-6 rounded-[32px] flex flex-col gap-4 shadow-[4px_12px_40px_-12px_rgba(0,0,0,0.3)] hover:bg-white/[0.05] hover:scale-[1.02] transition-all duration-500 ease-out group relative overflow-hidden cursor-pointer"
+          >
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
             <div className="absolute inset-0 bg-gradient-to-b from-white/[0.05] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             
@@ -229,7 +235,7 @@ export function AdminDashboardPage() {
               <div className={`w-12 h-12 rounded-[20px] ${stat.bg} ${stat.glow} flex items-center justify-center shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] transition-transform duration-500 group-hover:scale-110`}>
                 <span className={`material-symbols-outlined text-[24px] ${stat.color}`}>{stat.icon}</span>
               </div>
-              {/* <span className="text-xs font-semibold text-emerald-400 bg-emerald-400/10 px-2.5 py-1 rounded-full border border-emerald-400/20 backdrop-blur-md">+2.4%</span> */}
+              <span className="material-symbols-outlined text-white/0 group-hover:text-white/40 text-[18px] transition-all duration-300 translate-x-1 group-hover:translate-x-0">arrow_forward</span>
             </div>
             <div className="relative z-10 pt-2">
               <p className="font-mono text-3xl font-semibold text-white tracking-tight drop-shadow-sm">{stat.label === 'Total Revenue' ? '$ ' : ''}{stat.value}</p>
