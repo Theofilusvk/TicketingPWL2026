@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class EventOrganizer extends Model
 {
@@ -17,6 +18,11 @@ class EventOrganizer extends Model
         'organizer_id',
         'referral_code',
         'notes',
+    ];
+
+    protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**
@@ -33,6 +39,65 @@ class EventOrganizer extends Model
     public function organizer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'organizer_id', 'user_id');
+    }
+
+    /**
+     * Check if organizer still has access to this event
+     * Uses organizer_access_until if set, otherwise uses event end_time
+     */
+    public function hasAccess(): bool
+    {
+        if (!$this->event) {
+            return false;
+        }
+
+        return !$this->event->hasOrganizerAccessExpired();
+    }
+
+    /**
+     * Get the remaining time until organizer access expires
+     * Uses organizer_access_until if set, otherwise uses event end_time
+     */
+    public function getRemainingTime()
+    {
+        if (!$this->event) {
+            return null;
+        }
+
+        $deadline = $this->event->getOrganizerAccessDeadline();
+        $currentTime = Carbon::now();
+
+        if ($currentTime->isAfter($deadline)) {
+            return null;
+        }
+
+        return $deadline->diff($currentTime);
+    }
+
+    /**
+     * Check if organizer access has expired
+     * Uses organizer_access_until if set, otherwise uses event end_time
+     */
+    public function eventHasEnded(): bool
+    {
+        if (!$this->event) {
+            return false;
+        }
+
+        return $this->event->hasOrganizerAccessExpired();
+    }
+
+    /**
+     * Get time until organizer access expires (in minutes)
+     * Uses organizer_access_until if set, otherwise uses event end_time
+     */
+    public function getMinutesUntilEnd(): int
+    {
+        if (!$this->event) {
+            return 0;
+        }
+
+        return $this->event->getMinutesUntilOrganizerAccessExpires();
     }
 
     /**

@@ -67,7 +67,7 @@ class EventOrganizerController
     }
 
     /**
-     * Get events assigned to current organizer
+     * Get events assigned to current organizer (with access check)
      */
     public function myEvents(): JsonResponse
     {
@@ -81,12 +81,23 @@ class EventOrganizerController
             ->with('event')
             ->get()
             ->map(function ($assignment) {
+                $hasAccess = $assignment->hasAccess();
+                $minutesLeft = $assignment->getMinutesUntilEnd();
+                $accessDeadline = $assignment->event->getOrganizerAccessDeadline();
+                
                 return [
                     'event_organizer_id' => $assignment->event_organizer_id,
                     'event_id' => $assignment->event->event_id,
                     'event_title' => $assignment->event->title,
+                    'event_start_time' => $assignment->event->start_time,
+                    'event_end_time' => $assignment->event->end_time,
+                    'organizer_access_until' => $assignment->event->organizer_access_until,
+                    'access_deadline' => $accessDeadline, // The actual deadline being used
                     'referral_code' => $assignment->referral_code,
                     'notes' => $assignment->notes,
+                    'hasAccess' => $hasAccess,
+                    'eventEnded' => $assignment->eventHasEnded(),
+                    'minutesUntilEnd' => $minutesLeft,
                     'created_at' => $assignment->created_at,
                 ];
             });

@@ -110,6 +110,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('events/{event}/waiting-list', [\App\Http\Controllers\WaitingListController::class, 'byEvent']);
     });
 
+    // Organizer-specific routes with access validation (limited until event ends)
+    Route::middleware(['role:organizer', 'check.organizer.access'])->group(function () {
+        Route::post('events/{eventId}/tickets/validate', [TicketController::class, 'validateTicket']);
+    });
+
     // Admin Only Routes
     Route::middleware('role:admin')->group(function () {
         Route::apiResource('categories', CategoryController::class)->except(['index', 'show']);
@@ -156,3 +161,4 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Public route for referral code lookup (needed for QR code scanning)
     Route::get('event-organizers/code/{code}', [EventOrganizerController::class, 'getByCode']);
+});

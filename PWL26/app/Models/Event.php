@@ -18,6 +18,7 @@ class Event extends Model
         'location', 
         'start_time', 
         'end_time', 
+        'organizer_access_until',
         'status'
     ];
     
@@ -59,5 +60,26 @@ class Event extends Model
     public function getAvailableCapacityAttribute()
     {
         return $this->venue_capacity ? max(0, $this->venue_capacity - $this->total_sold) : 0;
+    }
+
+    // Get the actual organizer access deadline (use organizer_access_until if set, else use end_time)
+    public function getOrganizerAccessDeadline()
+    {
+        return $this->organizer_access_until ?? $this->end_time;
+    }
+
+    // Check if organizer access has expired
+    public function hasOrganizerAccessExpired()
+    {
+        $deadline = $this->getOrganizerAccessDeadline();
+        return \Carbon\Carbon::now()->isAfter($deadline);
+    }
+
+    // Get minutes until organizer access expires
+    public function getMinutesUntilOrganizerAccessExpires()
+    {
+        $deadline = $this->getOrganizerAccessDeadline();
+        $diff = \Carbon\Carbon::now()->diffInMinutes($deadline, false);
+        return max(0, $diff);
     }
 }
