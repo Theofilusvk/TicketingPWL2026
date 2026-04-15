@@ -76,7 +76,8 @@ class NewsController
             'content' => 'required|string',
             'tag' => 'nullable|string|max:50',
             'urgency' => 'nullable|in:NORMAL,HIGH,CRITICAL',
-            'image_url' => 'nullable|url',
+            'image_url' => 'nullable|string',
+            'event_id' => 'nullable|exists:events,event_id',
             'is_published' => 'nullable|boolean',
             'published_at' => 'nullable|date_format:Y-m-d H:i:s',
         ]);
@@ -88,6 +89,7 @@ class NewsController
             'tag' => $validated['tag'] ?? 'SYSTEM',
             'urgency' => $validated['urgency'] ?? 'NORMAL',
             'image_url' => $validated['image_url'] ?? null,
+            'event_id' => $validated['event_id'] ?? null,
             'is_published' => $validated['is_published'] ?? true,
             'published_at' => $validated['published_at'] ?? now(),
         ]);
@@ -112,7 +114,8 @@ class NewsController
             'content' => 'sometimes|string',
             'tag' => 'sometimes|string|max:50',
             'urgency' => 'sometimes|in:NORMAL,HIGH,CRITICAL',
-            'image_url' => 'sometimes|nullable|url',
+            'image_url' => 'sometimes|nullable|string',
+            'event_id' => 'sometimes|nullable|exists:events,event_id',
             'is_published' => 'sometimes|boolean',
             'published_at' => 'sometimes|nullable|date_format:Y-m-d H:i:s',
         ]);

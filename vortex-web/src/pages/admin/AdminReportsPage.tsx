@@ -376,6 +376,38 @@ export function AdminReportsPage() {
       </div>
 
       {/* Chart Preview for applicable reports */}
+      {activeReport === 'transaction' && apiEventComparison.length > 0 && (
+        <div className="bg-white/[0.02] backdrop-blur-[40px] border border-white/[0.08] p-8 rounded-[32px] shadow-[4px_12px_40px_-12px_rgba(0,0,0,0.3)] relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+          <h2 className="text-base font-semibold text-white/90 mb-6 tracking-wide">Revenue per Event (Real-time)</h2>
+          <div className="h-56 w-full -ml-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={apiEventComparison.map((e: any) => ({ name: e.title?.length > 14 ? e.title.slice(0, 14) + '…' : e.title, revenue: parseFloat(e.total_revenue), tickets: e.tickets_sold }))} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="name" stroke="rgba(255,255,255,0.3)" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis stroke="rgba(255,255,255,0.3)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={v => `${v / 1000}k`} />
+                <Tooltip
+                  content={({ active, payload, label }: any) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-black/80 backdrop-blur-md border border-white/10 p-3 rounded-2xl shadow-xl text-xs">
+                          <p className="text-white/60 font-semibold mb-1">{label}</p>
+                          <p className="font-mono font-bold text-indigo-300">Revenue: $ {payload[0]?.value?.toLocaleString()}</p>
+                          <p className="font-mono text-emerald-300">Tickets: {payload[1]?.value?.toLocaleString()}</p>
+                        </div>
+                      )
+                    }
+                    return null
+                  }}
+                />
+                <Bar dataKey="revenue" fill="#818cf8" radius={[6, 6, 0, 0]} name="Revenue" />
+                <Bar dataKey="tickets" fill="#34d399" radius={[6, 6, 0, 0]} name="Tickets" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
       {activeReport === 'daily-revenue' && dailyRevenueData.length > 0 && (
         <div className="bg-white/[0.02] backdrop-blur-[40px] border border-white/[0.08] p-8 rounded-[32px] shadow-[4px_12px_40px_-12px_rgba(0,0,0,0.3)] relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />

@@ -6,6 +6,7 @@ type EventFormData = {
   description: string
   startDate: string
   endDate: string
+  organizerAccessUntil: string
   category: EventCategory
   category_id?: string
   status: 'ACTIVE' | 'DRAFT' | 'LOCKED' | 'COMPLETED'
@@ -19,6 +20,7 @@ const INITIAL_FORM: EventFormData = {
   description: '',
   startDate: '',
   endDate: '',
+  organizerAccessUntil: '',
   category: 'Musik',
   category_id: '',
   status: 'ACTIVE',
@@ -84,6 +86,7 @@ export function AdminEventsPage() {
               id: String(e.event_id),
               name: e.title,
               date: e.start_time.split(' ')[0], // YYYY-MM-DD
+              endDate: e.end_time ? e.end_time.split(' ')[0] : undefined,
               category: e.category ? e.category.name : 'Unknown',
               status: e.status ? e.status.toUpperCase() : (new Date(e.start_time) < new Date() ? 'PAST' : 'ACTIVE'),
               capacity: totalStock > 0 ? totalStock : 500,
@@ -154,6 +157,7 @@ export function AdminEventsPage() {
       description: '',
       startDate: dateStr,
       endDate: dateStr,
+      organizerAccessUntil: dateStr,
       category: event.category || 'Musik',
       // Get the correct category_id based on the currently displayed category name
       category_id: categories.find(c => c.name === event.category)?.id || '',
@@ -214,8 +218,9 @@ export function AdminEventsPage() {
       formData.append('description', form.description)
       formData.append('location', form.venue || 'THE FOUNDRY')
       formData.append('start_time', `${form.startDate} 19:00:00`)
-      formData.append('end_time', `${form.endDate || form.startDate} 23:59:59`)
-      formData.append('organizer_id', '2') // Usually mapped to auth()->id() if backend expects matching ID
+      formData.append('end_time', `${form.endDate || form.startDate} 23:59:59`)      if (form.organizerAccessUntil) {
+        formData.append('organizer_access_until', `${form.organizerAccessUntil} 23:59:59`)
+      }      formData.append('organizer_id', '2') // Usually mapped to auth()->id() if backend expects matching ID
       formData.append('category_id', form.category_id || (categories.length > 0 ? categories[0].id : '1'))
       formData.append('status', 'active')
 
@@ -388,7 +393,12 @@ export function AdminEventsPage() {
                         {event.category || 'N/A'}
                       </span>
                     </td>
-                    <td className="p-5 text-sm font-medium text-white/60 font-mono">{event.date.replace(/_/g, '-')}</td>
+                    <td className="p-5 text-sm font-medium text-white/60 font-mono">
+                      {event.date.replace(/_/g, '-')}
+                      {event.endDate && event.endDate !== event.date && (
+                        <span className="text-white/30"> — {event.endDate}</span>
+                      )}
+                    </td>
                     <td className="p-5">
                       <div className="flex items-center gap-3 max-w-[150px]">
                         <div className="flex-1 h-1.5 bg-white/10 border border-white/5 rounded-full relative overflow-hidden shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]">
@@ -471,7 +481,12 @@ export function AdminEventsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-white/[0.03] rounded-2xl p-4 border border-white/[0.06]">
                     <p className="text-[10px] uppercase tracking-widest text-white/30 font-semibold">Date</p>
-                    <p className="text-sm text-white/80 font-mono mt-1">{detailEvent.date.replace(/_/g, '-')}</p>
+                    <p className="text-sm text-white/80 font-mono mt-1">
+                      {detailEvent.date.replace(/_/g, '-')}
+                      {detailEvent.endDate && detailEvent.endDate !== detailEvent.date && (
+                        <span className="text-white/40"> — {detailEvent.endDate}</span>
+                      )}
+                    </p>
                   </div>
                   <div className="bg-white/[0.03] rounded-2xl p-4 border border-white/[0.06]">
                     <p className="text-[10px] uppercase tracking-widest text-white/30 font-semibold">Category</p>
@@ -614,6 +629,17 @@ export function AdminEventsPage() {
                         className="w-full bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all duration-300 [color-scheme:dark]"
                       />
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-semibold text-white/40 uppercase tracking-widest pl-1">Organizer Access Until (Optional)</label>
+                    <p className="text-[10px] text-white/30 pl-1 mb-2">Date when organizers lose scanner access. Defaults to event end date if not specified.</p>
+                    <input
+                      type="date"
+                      value={form.organizerAccessUntil} onChange={e => setForm({ ...form, organizerAccessUntil: e.target.value })}
+                      min={form.startDate}
+                      className="w-full bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all duration-300 [color-scheme:dark]"
+                    />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">

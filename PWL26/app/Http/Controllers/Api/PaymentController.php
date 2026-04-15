@@ -9,6 +9,7 @@ use Xendit\Invoice\InvoiceApi;
 use Xendit\Invoice\CreateInvoiceRequest;
 use App\Models\Order;
 use App\Models\TicketType;
+use App\Models\Notification;
 use App\Jobs\SendTicketEmail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -71,6 +72,19 @@ class PaymentController extends Controller
                     'created_at' => now(),
                 ]);
             }
+
+            // Create notification for successful ticket purchase
+            $event = DB::table('events')->where('event_id', $order->event_id)->first();
+            $eventTitle = $event ? $event->title : 'Your Order';
+            
+            Notification::create([
+                'user_id' => $order->user_id,
+                'event_id' => $order->event_id,
+                'type' => 'ticket_purchased',
+                'title' => '🎟️ TICKETS CONFIRMED',
+                'message' => "Your tickets for {$eventTitle} have been successfully purchased! Check your email for details.",
+                'logo_url' => $event ? ($event->poster_url ?? null) : null,
+            ]);
 
             DB::commit();
 

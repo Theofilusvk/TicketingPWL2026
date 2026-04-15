@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, X, Trash2, Edit2, Send } from 'lucide-react'
+import { Plus, X, Trash2, Edit2, Send, Upload } from 'lucide-react'
 
 interface News {
   news_id: number
@@ -8,17 +8,25 @@ interface News {
   tag: string
   urgency: string
   image_url: string | null
+  event_id: number | null
   is_published: boolean
   published_at: string
   author_id: number
 }
 
+interface Event {
+  event_id: number
+  title: string
+}
+
 export function AdminNewsPage() {
   const [newsList, setNewsList] = useState<News[]>([])
+  const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingNews, setEditingNews] = useState<News | null>(null)
   const [filter, setFilter] = useState('all')
+  const [uploadedImage, setUploadedImage] = useState<string>('')
   const token = localStorage.getItem('vortex.auth.token')
 
   const [formData, setFormData] = useState({
@@ -27,6 +35,7 @@ export function AdminNewsPage() {
     tag: 'SYSTEM',
     urgency: 'NORMAL',
     image_url: '',
+    event_id: '',
     is_published: true,
   })
 
@@ -35,6 +44,7 @@ export function AdminNewsPage() {
 
   useEffect(() => {
     fetchNews()
+    fetchEvents()
   }, [])
 
   const fetchNews = async () => {
@@ -51,6 +61,29 @@ export function AdminNewsPage() {
     }
   }
 
+  const fetchEvents = async () => {
+    try {
+      const response = await fetch('/api/events')
+      const data = await response.json()
+      setEvents(data.data || data)
+    } catch (err) {
+      console.error('Failed to fetch events:', err)
+    }
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string
+      setUploadedImage(base64)
+      setFormData({ ...formData, image_url: base64 })
+    }
+    reader.readAsDataURL(file)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -60,16 +93,24 @@ export function AdminNewsPage() {
         ? `/api/admin/news/${editingNews.news_id}/update`
         : '/api/admin/news/create'
 
+      const payload = {
+        title: formData.title,
+        content: formData.content,
+        tag: formData.tag,
+        urgency: formData.urgency,
+        image_url: formData.image_url,
+        event_id: formData.event_id ? parseInt(formData.event_id) : null,
+        is_published: formData.is_published,
+        published_at: new Date().toISOString(),
+      }
+
       const response = await fetch(endpoint, {
         method,
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...formData,
-          published_at: new Date().toISOString(),
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (response.ok) {
@@ -106,8 +147,10 @@ export function AdminNewsPage() {
       tag: 'SYSTEM',
       urgency: 'NORMAL',
       image_url: '',
+      event_id: '',
       is_published: true,
     })
+    setUploadedImage('')
     setEditingNews(null)
   }
 
@@ -235,8 +278,10 @@ export function AdminNewsPage() {
                         tag: article.tag,
                         urgency: article.urgency,
                         image_url: article.image_url || '',
+                        event_id: article.event_id?.toString() || '',
                         is_published: article.is_published,
                       })
+                      setUploadedImage('')
                       setShowModal(true)
                     }}
                     className="p-2 hover:bg-zinc-700 rounded transition-colors"
@@ -344,27 +389,88 @@ export function AdminNewsPage() {
                   </div>
                 </div>
 
-                {/* Image URL */}
+                {/* Image: URL or Upload */}
                 <div>
                   <label className="block text-xs font-semibold text-white/60 uppercase tracking-widest mb-3">
-                    Image URL (Optional)
+                    Image (Optional)
                   </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="url"
-                      value={formData.image_url}
-                      onChange={e => setFormData({ ...formData, image_url: e.target.value })}
-                      className="flex-1 bg-zinc-800/50 border border-zinc-700 text-white rounded px-3 py-2 font-mono text-sm placeholder-zinc-600 focus:border-primary outline-none transition-colors"
-                      placeholder="https://..."
-                    />
-                    {formData.image_url && (
-                      <img
-                        src={formData.image_url}
-                        alt="preview"
-                        className="w-10 h-10 rounded border border-zinc-700 object-cover"
+                  <div className="space-y-3">
+                    {/* URL Option */}
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        value={formData.image_url}
+                        onChange={e => setFormData({ ...formData, image_url: e.target.value })}
+                        className="flex-1 bg-zinc-800/50 border border-zinc-700 text-white rounded px-3 py-2 font-mono text-sm placeholder-zinc-600 focus:border-primary outline-none transition-colors"
+                        placeholder="https://example.com/image.jpg"
                       />
+                      {formData.image_url && !formData.image_url.startsWith('data:') && (
+                        <img
+                          src={formData.image_url}
+                          alt="preview"
+                          className="w-10 h-10 rounded border border-zinc-700 object-cover"
+                          onError={() => setFormData({ ...formData, image_url: '' })}
+                        />
+                      )}
+                    </div>
+
+                    {/* File Upload Option */}
+                    <div>
+                      <label className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-zinc-700 rounded-lg cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all group">
+                        <Upload className="w-4 h-4 text-zinc-500 group-hover:text-primary" />
+                        <span className="text-sm text-zinc-400 group-hover:text-primary transition-colors">
+                          {uploadedImage ? 'Image Selected' : 'Or Upload Image'}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+
+                    {/* Image Preview */}
+                    {formData.image_url && (
+                      <div className="relative">
+                        <img
+                          src={formData.image_url}
+                          alt="preview"
+                          className="w-full h-32 rounded border border-zinc-700 object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData({ ...formData, image_url: '' })
+                            setUploadedImage('')
+                          }}
+                          className="absolute top-2 right-2 bg-red-900 hover:bg-red-800 text-white p-1 rounded transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
                     )}
                   </div>
+                </div>
+
+                {/* Link to Event (Optional) */}
+                <div>
+                  <label className="block text-xs font-semibold text-white/60 uppercase tracking-widest mb-3">
+                    Link to Event (Optional)
+                  </label>
+                  <select
+                    value={formData.event_id}
+                    onChange={e => setFormData({ ...formData, event_id: e.target.value })}
+                    className="w-full bg-zinc-800/50 border border-zinc-700 text-white rounded px-3 py-2 font-mono text-sm"
+                  >
+                    <option value="">No Event Link</option>
+                    {events.map(event => (
+                      <option key={event.event_id} value={event.event_id.toString()}>
+                        {event.title}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-zinc-500 mt-2">This broadcast will be linked to the selected event</p>
                 </div>
 
                 {/* Publish Status */}

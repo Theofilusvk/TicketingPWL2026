@@ -13,6 +13,7 @@ class News extends Model
 
     protected $fillable = [
         'author_id',
+        'event_id',
         'title',
         'content',
         'tag',
@@ -35,6 +36,14 @@ class News extends Model
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'author_id', 'user_id');
+    }
+
+    /**
+     * Get the event associated with this broadcast
+     */
+    public function event(): BelongsTo
+    {
+        return $this->belongsTo(Event::class, 'event_id', 'event_id');
     }
 
     /**

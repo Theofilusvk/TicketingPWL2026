@@ -9,6 +9,7 @@ interface Dot {
   density: number
   depth: number
   shape: number // 0-1 determines which shape to draw
+  colorType: number // 0-1 to determine color
   pulsePhase: number
 }
 
@@ -29,11 +30,14 @@ export function ParticleBackground() {
     let scrollY = window.scrollY
     let frame = 0
 
-    // ── Accent color ────────────────────────────────────
+    // ── Accent colors ───────────────────────────────────
     const ACCENT = '#CBFF00'
-
+    const ACCENT_RGB = '203, 255, 0'
+    const SECONDARY_RGB = '255, 77, 77' // coral red
+    
     // ── Particle pool ───────────────────────────────────
-    const COUNT = Math.min(Math.floor((w * h) / 14000), 90)
+    // Denser particle count for a "lebih rame" feel
+    const COUNT = Math.min(Math.floor((w * h) / 6000), 200)
     let dots: Dot[] = []
 
     function spawn(): Dot {
@@ -42,10 +46,11 @@ export function ParticleBackground() {
         y: Math.random() * h,
         vx: (Math.random() - 0.5) * 0.4,
         vy: (Math.random() - 0.5) * 0.4,
-        size: Math.random() * 2 + 0.8,
+        size: Math.random() * 2.5 + 0.5,
         density: Math.random() * 15 + 5,
         depth: Math.random() * 3 + 1,
         shape: Math.random(),
+        colorType: Math.random(),
         pulsePhase: Math.random() * Math.PI * 2,
       }
     }
@@ -157,25 +162,27 @@ export function ParticleBackground() {
         // Pulsing alpha
         const pulse = 0.5 + 0.5 * Math.sin(t * 3 + d.pulsePhase)
         const alpha = (0.35 + pulse * 0.45).toFixed(2)
+        const colorTuple = d.colorType > 0.8 ? SECONDARY_RGB : ACCENT_RGB
 
         // Draw shape
         ctx!.save()
-        if (d.shape > 0.88 && d.size > 1.2) {
+        ctx!.strokeStyle = `rgba(${colorTuple}, ${alpha})`
+        ctx!.fillStyle = `rgba(${colorTuple}, ${alpha})`
+        
+        if (d.shape > 0.95 && d.size > 1.2) {
           // ✚ crosshair
-          ctx!.strokeStyle = `rgba(203, 255, 0, ${alpha})`
           ctx!.lineWidth = 1
-          const arm = 4
+          const arm = 5
           ctx!.beginPath()
           ctx!.moveTo(d.x - arm, d.y)
           ctx!.lineTo(d.x + arm, d.y)
           ctx!.moveTo(d.x, d.y - arm)
           ctx!.lineTo(d.x, d.y + arm)
           ctx!.stroke()
-        } else if (d.shape > 0.74 && d.size > 1.4) {
+        } else if (d.shape > 0.85 && d.size > 1.4) {
           // ◇ diamond
-          ctx!.strokeStyle = `rgba(203, 255, 0, ${alpha})`
           ctx!.lineWidth = 1
-          const s = 3.5
+          const s = 4
           ctx!.beginPath()
           ctx!.moveTo(d.x, d.y - s)
           ctx!.lineTo(d.x + s, d.y)
@@ -183,14 +190,26 @@ export function ParticleBackground() {
           ctx!.lineTo(d.x - s, d.y)
           ctx!.closePath()
           ctx!.stroke()
-        } else if (d.shape > 0.60 && d.size > 1.0) {
-          // □ hollow square
-          ctx!.strokeStyle = `rgba(203, 255, 0, ${alpha})`
+        } else if (d.shape > 0.75 && d.size > 1.0) {
+          // □ hollow square (rotating)
           ctx!.lineWidth = 1
-          ctx!.strokeRect(d.x - 2.5, d.y - 2.5, 5, 5)
+          ctx!.translate(d.x, d.y)
+          ctx!.rotate(t)
+          ctx!.strokeRect(-3, -3, 6, 6)
+        } else if (d.shape > 0.65) {
+          // △ triangle
+          ctx!.lineWidth = 1
+          const s = 3.5
+          ctx!.translate(d.x, d.y)
+          ctx!.rotate(d.pulsePhase)
+          ctx!.beginPath()
+          ctx!.moveTo(0, -s)
+          ctx!.lineTo(s, s)
+          ctx!.lineTo(-s, s)
+          ctx!.closePath()
+          ctx!.stroke()
         } else {
           // ● dot
-          ctx!.fillStyle = `rgba(203, 255, 0, ${alpha})`
           ctx!.beginPath()
           ctx!.arc(d.x, d.y, d.size, 0, Math.PI * 2)
           ctx!.fill()
@@ -206,9 +225,10 @@ export function ParticleBackground() {
           const dx = dots[a].x - dots[b].x
           const dy = dots[a].y - dots[b].y
           const distSq = dx * dx + dy * dy
-          if (distSq < 14000) {
-            const proximity = 1 - distSq / 14000
-            ctx!.strokeStyle = `rgba(203, 255, 0, ${(proximity * 0.15).toFixed(3)})`
+          if (distSq < 10000) {
+            const proximity = 1 - distSq / 10000
+            const colorTuple = dots[a].colorType > 0.8 ? SECONDARY_RGB : ACCENT_RGB
+            ctx!.strokeStyle = `rgba(${colorTuple}, ${(proximity * 0.15).toFixed(3)})`
             ctx!.beginPath()
             ctx!.moveTo(dots[a].x, dots[a].y)
             ctx!.lineTo(dots[b].x, dots[b].y)
@@ -225,8 +245,8 @@ export function ParticleBackground() {
           mouseX, mouseY, 0,
           mouseX, mouseY, glowRad
         )
-        grad.addColorStop(0, 'rgba(203, 255, 0, 0.06)')
-        grad.addColorStop(0.5, 'rgba(203, 255, 0, 0.02)')
+        grad.addColorStop(0, 'rgba(203, 255, 0, 0.08)')
+        grad.addColorStop(0.5, 'rgba(203, 255, 0, 0.03)')
         grad.addColorStop(1, 'transparent')
         ctx!.fillStyle = grad
         ctx!.fillRect(
@@ -236,8 +256,46 @@ export function ParticleBackground() {
           glowRad * 2
         )
       }
+      
+      // ── 6. Concert Laser Beams ────────────────────────
+      ctx!.save()
+      const numLasers = 6;
+      for (let i = 0; i < numLasers; i++) {
+         // Determine origin point at the bottom
+         const originX = (w / numLasers) * i + (w / numLasers) / 2
+         const originY = h + 20
+         
+         // Generate an interesting swing math for the lasers
+         const offset = i * 4.5
+         // Lasers swing back and forth
+         const angle = Math.sin(t * 1.5 + offset) * 0.4 - Math.PI / 2
+         
+         const beamLength = Math.max(w, h) * 1.5
+         const endX = originX + Math.cos(angle) * beamLength
+         const endY = originY + Math.sin(angle) * beamLength
+         
+         // Subtle laser width and color to prevent it from ruining visibility
+         const laserColor = i % 2 === 0 ? '203, 255, 0' : '255, 77, 77'
+         const laserAlpha = 0.04 + Math.sin(t * 4 + i) * 0.02
+         
+         ctx!.beginPath()
+         ctx!.moveTo(originX, originY)
+         ctx!.lineTo(endX, endY)
+         ctx!.lineWidth = 15 + Math.sin(t * 3 + i) * 5
+         ctx!.strokeStyle = `rgba(${laserColor}, ${laserAlpha})`
+         ctx!.stroke()
+         
+         // Add bright thin core to the laser
+         ctx!.beginPath()
+         ctx!.moveTo(originX, originY)
+         ctx!.lineTo(endX, endY)
+         ctx!.lineWidth = 2
+         ctx!.strokeStyle = `rgba(${laserColor}, ${laserAlpha * 2.5})`
+         ctx!.stroke()
+      }
+      ctx!.restore()
 
-      // ── 6. Scanning line (sweeps down screen slowly) ──
+      // ── 7. Scanning line (sweeps down screen slowly) ──
       const scanSpeed = 0.0008
       const scanPos = ((frame * scanSpeed + curScroll * 0.0003) % 1.3) * h
       ctx!.save()
