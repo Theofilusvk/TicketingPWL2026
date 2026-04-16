@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo, useEffect } from 'react'
 import { type EventData, EVENT_CATEGORIES, type EventCategory } from '../../lib/store'
+import { useToast } from '../../components/Toast'
 
 type EventFormData = {
   name: string
@@ -51,6 +52,7 @@ function getEventStatus(event: EventData): { label: string; color: string } {
 }
 
 export function AdminEventsPage() {
+  const { showToast } = useToast()
   const [apiEvents, setApiEvents] = useState<EventData[]>([])
   const [categories, setCategories] = useState<{ id: string, name: string }[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -178,11 +180,12 @@ export function AdminEventsPage() {
       const payload = await res.json()
       if (res.ok) {
         await fetchEventOrganizers(organizerEvent.id)
+        showToast('Organizer assigned successfully', 'success')
       } else {
-        alert(payload.message || 'Failed to assign organizer')
+        showToast(payload.message || 'Failed to assign organizer', 'error')
       }
     } catch (err) {
-      alert('Network error')
+      showToast('Network error', 'error')
     } finally {
       setIsAssigning(false)
     }
@@ -198,9 +201,12 @@ export function AdminEventsPage() {
       })
       if (res.ok && organizerEvent) {
         await fetchEventOrganizers(organizerEvent.id)
+        showToast('Organizer removed successfully', 'success')
+      } else {
+        showToast('Failed to remove organizer', 'error')
       }
     } catch (err) {
-      alert('Network error')
+      showToast('Network error', 'error')
     }
   }
 
@@ -346,11 +352,12 @@ export function AdminEventsPage() {
         setForm(INITIAL_FORM)
         setPosterPreview(null)
         setPosterFile(null)
+        showToast(`Event ${isEditing ? 'updated' : 'created'} successfully`, 'success')
       } else {
-        alert('Action failed: ' + (result.message || 'Validation error'))
+        showToast('Action failed: ' + (result.message || 'Validation error'), 'error')
       }
     } catch (err) {
-      alert('Could not connect to backend.')
+      showToast('Could not connect to backend.', 'error')
     }
   }
 
@@ -378,11 +385,12 @@ export function AdminEventsPage() {
       })
       if (res.ok) {
         await fetchEvents() // Fetch latest event list after deletion
+        showToast('Event deleted successfully', 'success')
       } else {
-        alert('Could not delete event from database.')
+        showToast('Could not delete event from database.', 'error')
       }
     } catch (err) {
-      alert('Network error.')
+      showToast('Network error.', 'error')
     }
   }
 

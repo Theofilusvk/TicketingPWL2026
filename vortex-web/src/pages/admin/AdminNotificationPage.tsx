@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Plus, X, Trash2, Edit2, Send } from 'lucide-react'
+import { useToast } from '../../components/Toast'
 
 interface Notification {
   notification_id: number
@@ -18,6 +19,7 @@ interface Event {
 }
 
 export function AdminNotificationPage() {
+  const { showToast } = useToast()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
@@ -86,9 +88,13 @@ export function AdminNotificationPage() {
         fetchNotifications()
         setShowModal(false)
         resetForm()
+        showToast('Notification broadcast successfully', 'success')
+      } else {
+        showToast('Failed to broadcast notification', 'error')
       }
     } catch (err) {
       console.error('Failed to create notification:', err)
+      showToast('Network error', 'error')
     }
   }
 

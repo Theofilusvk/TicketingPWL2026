@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { useAuth } from '../../lib/auth'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 
 export function AdminDashboardPage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const isOrganizer = user?.role === 'organizer'
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -14,7 +17,7 @@ export function AdminDashboardPage() {
   const [metrics, setMetrics] = useState({
     totalRevenue: 0,
     ticketsSold: 0,
-    activeUsers: 890, // We can mock this since there is no live analytics for active users yet
+    activeUsers: 890,
     supportTickets: 12
   })
 
@@ -37,14 +40,20 @@ export function AdminDashboardPage() {
       Authorization: `Bearer ${token}`
     }
 
+    // Choose API endpoints based on role
+    const revenueUrl = isOrganizer ? '/api/organizer/analytics/revenue' : '/api/admin/analytics/revenue'
+    const comparisonUrl = isOrganizer ? '/api/organizer/analytics/event-comparison' : '/api/admin/analytics/event-comparison'
+    const transactionsUrl = isOrganizer ? null : '/api/admin/analytics/transactions?limit=5'
+
     setLoading(true)
 
-    // Parallel fetch from multiple live endpoints
-    Promise.all([
-      fetch('/api/admin/analytics/revenue', { headers }).then(r => r.json()),
-      fetch('/api/admin/analytics/transactions?limit=5', { headers }).then(r => r.json()),
-      fetch('/api/admin/analytics/event-comparison', { headers }).then(r => r.json())
-    ])
+    const fetches: Promise<any>[] = [
+      fetch(revenueUrl, { headers }).then(r => r.json()),
+      transactionsUrl ? fetch(transactionsUrl, { headers }).then(r => r.json()) : Promise.resolve({ status: 'success', data: { recent_transactions: [] } }),
+      fetch(comparisonUrl, { headers }).then(r => r.json())
+    ]
+
+    Promise.all(fetches)
     .then(([revenueRes, transactionsRes, comparisonRes]) => {
       let revenue = 0
       let sold = 0
@@ -52,9 +61,7 @@ export function AdminDashboardPage() {
       if (revenueRes.status === 'success') {
         revenue = revenueRes.data.summary.total_revenue;
         
-        // Map daily revenue to chart format (Mon, Tue, Wed, etc)
         const daily = revenueRes.data.daily_revenue || [];
-        // If daily is empty or has only 1 day, we can pad it for the visual chart
         if (daily.length > 0) {
           const formattedChart = daily.map((d: any) => {
             const dateObj = new Date(d.date)
@@ -64,7 +71,6 @@ export function AdminDashboardPage() {
             }
           })
           
-          // Pad to minimum 7 days if not enough data
           while (formattedChart.length < 7) {
             formattedChart.unshift({ name: '-', revenue: 0 })
           }
@@ -79,7 +85,6 @@ export function AdminDashboardPage() {
 
       if (transactionsRes.status === 'success') {
         setOrdersData(transactionsRes.data.recent_transactions || [])
-        // Map recent transactions to Activity Log list
         const activity = transactionsRes.data.recent_transactions?.slice(0, 5).map((t: any) => ({
           time: new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           text: `Ticket checkout for Order #${t.order_id} completed`,
@@ -87,15 +92,14 @@ export function AdminDashboardPage() {
           colorClasses: 'bg-sky-500/20 border-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.6)]'
         })) || []
         
-        // Pad with mock system data if transactions are less than 5
         setRecentActivity([...activity, { time: 'System', text: 'System diagnostics routine stable', icon: 'memory', colorClasses: 'bg-zinc-500/20 border-zinc-400 shadow-[0_0_12px_rgba(161,161,170,0.6)]' }])
       }
 
       setMetrics({
         totalRevenue: revenue,
         ticketsSold: sold,
-        activeUsers: 890 + Math.floor(Math.random() * 50), // mocked jitter
-        supportTickets: 12 // mocked value
+        activeUsers: isOrganizer ? comparisonRes.data?.length || 0 : 890 + Math.floor(Math.random() * 50),
+        supportTickets: isOrganizer ? sold : 12
       })
     })
     .catch(err => console.error('Dashboard API Error:', err))
@@ -181,9 +185,9 @@ export function AdminDashboardPage() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700 ease-out z-10 relative pb-12">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-semibold text-white tracking-tight drop-shadow-md">System Overview</h1>
+          <h1 className="text-4xl font-semibold text-white tracking-tight drop-shadow-md">{isOrganizer ? 'My Dashboard' : 'System Overview'}</h1>
           <p className="text-sm font-medium text-white/50 mt-1.5 flex items-center gap-2">
-            Global platform metrics and status
+            {isOrganizer ? 'Analytics for your assigned events' : 'Global platform metrics and status'}
             {loading && <span className="text-indigo-400 animate-pulse">(Connecting to live data...)</span>}
           </p>
         </div>
@@ -217,12 +221,17 @@ export function AdminDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
+        {(isOrganizer ? [
+          { label: 'Total Revenue', value: `${metrics.totalRevenue.toLocaleString()}`, icon: 'payments', color: 'text-indigo-300', bg: 'bg-indigo-500/20', glow: 'shadow-[0_0_20px_rgba(99,102,241,0.2)]', route: '/admin/analytics' },
+          { label: 'Tickets Sold', value: metrics.ticketsSold.toLocaleString(), icon: 'confirmation_number', color: 'text-sky-300', bg: 'bg-sky-500/20', glow: 'shadow-[0_0_20px_rgba(56,189,248,0.2)]', route: '/admin/events' },
+          { label: 'Assigned Events', value: metrics.activeUsers.toLocaleString(), icon: 'stadium', color: 'text-emerald-300', bg: 'bg-emerald-500/20', glow: 'shadow-[0_0_20px_rgba(52,211,153,0.2)]', route: '/admin/events' },
+          { label: 'Total Orders', value: metrics.supportTickets, icon: 'receipt_long', color: 'text-amber-300', bg: 'bg-amber-500/20', glow: 'shadow-[0_0_20px_rgba(251,191,36,0.2)]', route: '/admin/reports' },
+        ] : [
           { label: 'Total Revenue', value: `${metrics.totalRevenue.toLocaleString()}`, icon: 'payments', color: 'text-indigo-300', bg: 'bg-indigo-500/20', glow: 'shadow-[0_0_20px_rgba(99,102,241,0.2)]', route: '/admin/analytics' },
           { label: 'Tickets Issued', value: metrics.ticketsSold.toLocaleString(), icon: 'confirmation_number', color: 'text-sky-300', bg: 'bg-sky-500/20', glow: 'shadow-[0_0_20px_rgba(56,189,248,0.2)]', route: '/admin/events' },
           { label: 'Active Connections', value: metrics.activeUsers.toLocaleString(), icon: 'podcasts', color: 'text-emerald-300', bg: 'bg-emerald-500/20', glow: 'shadow-[0_0_20px_rgba(52,211,153,0.2)]', route: '/admin/users' },
           { label: 'Support Alerts', value: metrics.supportTickets, icon: 'warning', color: 'text-rose-300', bg: 'bg-rose-500/20', glow: 'shadow-[0_0_20px_rgba(251,113,133,0.2)]', route: '/admin/reports' },
-        ].map(stat => (
+        ]).map(stat => (
           <div
             key={stat.label}
             onClick={() => navigate(stat.route)}

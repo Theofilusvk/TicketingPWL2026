@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useToast } from '../../components/Toast'
 
 export interface ApiUserAccount {
   id: string;
@@ -11,6 +12,7 @@ export interface ApiUserAccount {
 }
 
 export function AdminUsersPage() {
+  const { showToast } = useToast()
   const [apiUsers, setApiUsers] = useState<ApiUserAccount[]>([])
   const [selectedUser, setSelectedUser] = useState<ApiUserAccount | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -54,9 +56,12 @@ export function AdminUsersPage() {
       if (res.ok) {
         if (selectedUser) setSelectedUser({ ...selectedUser, tier: newTier })
         await fetchUsers()
+        showToast('User tier updated successfully', 'success')
+      } else {
+        showToast('Failed to update user tier', 'error')
       }
     } catch (err) {
-      alert('Network error')
+      showToast('Network error', 'error')
     }
   }
 
@@ -75,9 +80,12 @@ export function AdminUsersPage() {
       if (res.ok) {
         if (selectedUser) setSelectedUser({ ...selectedUser, credits: Math.max(0, selectedUser.credits + adjustment) })
         await fetchUsers()
+        showToast('User balance updated successfully', 'success')
+      } else {
+        showToast('Failed to update balance', 'error')
       }
     } catch (err) {
-      alert('Network error')
+      showToast('Network error', 'error')
     }
   }
 
@@ -95,12 +103,13 @@ export function AdminUsersPage() {
       if (res.ok) {
         setSelectedUser(null)
         await fetchUsers()
+        showToast('User deleted successfully', 'success')
       } else {
         const err = await res.json()
-        alert(err.message || 'Could not delete user')
+        showToast(err.message || 'Could not delete user', 'error')
       }
     } catch (err) {
-      alert('Network error')
+      showToast('Network error', 'error')
     }
   }
 
