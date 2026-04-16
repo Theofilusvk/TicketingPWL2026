@@ -23,6 +23,10 @@ Route::post('auth/register', [AuthController::class, 'register']);
 Route::post('auth/login', [AuthController::class, 'login']);
 Route::post('auth/send-register-otp', [AuthController::class, 'sendRegisterOtp']);
 
+// Email Verification
+Route::post('auth/resend-verification-email', [AuthController::class, 'resendVerificationEmail']);
+Route::get('auth/verify-email/{id}/{hash}', [AuthController::class, 'verifyEmail'])->name('verification.verify');
+
 // Forgot & Reset Password
 Route::post('auth/forgot-password', [\App\Http\Controllers\Api\ForgotPasswordController::class, 'sendResetLinkEmail']);
 Route::post('auth/reset-password', [\App\Http\Controllers\Api\ForgotPasswordController::class, 'reset']);

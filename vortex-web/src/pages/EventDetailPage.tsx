@@ -5,10 +5,12 @@ import { VenueMapDisplay } from '../components/VenueMapDisplay'
 import { useState, useEffect, useCallback } from 'react'
 import { AudioPreview } from '../components/AudioPreview'
 import { useStore } from '../lib/store'
+import { JoinWaitingListModal } from '../components/JoinWaitingListModal'
 
 const EVENTS_DATA: Record<string, {
   id: string; title: string; date: string; venue: string; location: string
-  description: string; status: string; gradient: string
+  description: string; status: string; gradient: string; isSoldOut?: boolean
+  ticketTypes?: { id: string; name: string; price: number }[]
   lineup: { name: string; role: string; time: string; audioSrc?: string }[]
   schedule: { time: string; activity: string }[]
   faq: { q: string; a: string }[]
@@ -23,6 +25,12 @@ const EVENTS_DATA: Record<string, {
     description: 'The most visceral underground audio-visual experience engineered for the digital native. 12 hours of non-stop techno, industrial bass, and immersive laser mapping across 3 stages.',
     status: 'TICKETS LIVE',
     gradient: 'from-[#CBFF00]/20 to-transparent',
+    isSoldOut: false,
+    ticketTypes: [
+      { id: '1', name: 'GENERAL ACCESS', price: 45 },
+      { id: '2', name: 'VIP PASS', price: 75 },
+      { id: '3', name: 'ULTRA VIP', price: 120 }
+    ],
     lineup: [
       { name: 'VOID_ZERO', role: 'HEADLINER // TECHNO', time: '02:00 - 04:00', audioSrc: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tours/Enthusiast/Tours_-_01_-_Enthusiast.mp3' },
       { name: 'CYBER_WITCH', role: 'SUPPORT // ACID', time: '00:00 - 02:00', audioSrc: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Jahzzar/Tumbling_Dishes_Like_Old-Man_Wishes/Jahzzar_-_01_-_Siesta.mp3' },
@@ -63,8 +71,13 @@ const EVENTS_DATA: Record<string, {
     venue: 'VOID STATION 4',
     location: 'Underground Complex, Tokyo District 9',
     description: 'A sensory deprivation experience fused with high-frequency audio manipulation. Limited to 200 attendees for maximum immersion. Prepare for the most intense 8-hour sonic journey ever engineered.',
-    status: 'TICKETS LIVE',
+    status: 'SOLD OUT',
     gradient: 'from-[#FF4D4D]/20 to-transparent',
+    isSoldOut: true,
+    ticketTypes: [
+      { id: '1', name: 'GENERAL ACCESS', price: 65 },
+      { id: '2', name: 'VIP ISOLATION POD', price: 110 }
+    ],
     lineup: [
       { name: 'NEURAL_SYNC', role: 'HEADLINER // DARK TECHNO', time: '01:00 - 03:00', audioSrc: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Broke_For_Free/Directionless_EP/Broke_For_Free_-_01_-_Night_Owl.mp3' },
       { name: 'PULSE_WAVE', role: 'LIVE SET // ACID', time: '23:00 - 01:00', audioSrc: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Monplaisir/Turbo_A/Monplaisir_-_01_-_Turbo_A.mp3' },
@@ -184,10 +197,13 @@ export function EventDetailPage() {
     lineup: defaultExtra.lineup,
     schedule: defaultExtra.schedule,
     faq: defaultExtra.faq,
-    gallery: defaultExtra.gallery
+    gallery: defaultExtra.gallery,
+    isSoldOut: defaultExtra.isSoldOut,
+    ticketTypes: defaultExtra.ticketTypes
   } : (eventId && EVENTS_DATA[eventId] ? EVENTS_DATA[eventId] : null)
   
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const [showWaitingListModal, setShowWaitingListModal] = useState(false)
 
   if (!event) {
     return (
@@ -243,7 +259,7 @@ export function EventDetailPage() {
           </p>
           <ShareButton title={event.title} />
           <div className="mt-8 flex flex-wrap gap-4">
-            {!isLocked ? (
+            {!isLocked && !event.isSoldOut ? (
               <Link
                 to={`/reserve/${event.id}`}
                 className="inline-flex items-center gap-2 bg-primary text-black px-10 py-4 font-accent font-bold text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-transform shadow-[0_0_20px_rgba(203,255,0,0.2)]"
@@ -251,6 +267,14 @@ export function EventDetailPage() {
                 <span className="material-symbols-outlined text-sm">confirmation_number</span>
                 GET ACCESS
               </Link>
+            ) : event.isSoldOut ? (
+              <button
+                onClick={() => setShowWaitingListModal(true)}
+                className="inline-flex items-center gap-2 bg-indigo-600 text-white px-10 py-4 font-accent font-bold text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-transform shadow-[0_0_20px_rgba(99,102,241,0.2)]"
+              >
+                <span className="material-symbols-outlined text-sm">schedule</span>
+                JOIN WAITING LIST
+              </button>
             ) : (
               <button disabled className="inline-flex items-center gap-2 bg-zinc-800 text-zinc-500 px-10 py-4 font-accent font-bold text-xs uppercase tracking-widest cursor-not-allowed">
                 <span className="material-symbols-outlined text-sm">lock</span>
@@ -388,6 +412,28 @@ export function EventDetailPage() {
           EXACT COORDINATES WILL BE TRANSMITTED VIA ENCRYPTED CHANNEL 2 HOURS BEFORE THE EVENT.
         </p>
       </section>
+
+      {/* Waiting List Modal */}
+      {showWaitingListModal && event.ticketTypes && (
+        <JoinWaitingListModal
+          eventId={event.id}
+          eventTitle={event.title}
+          ticketTypes={event.ticketTypes}
+          onClose={() => setShowWaitingListModal(false)}
+          onSuccess={() => {
+            // Optionally refresh page or show success state
+          }}
+        />
+      )}
+
+      {/* Lightbox */}
+      {lightboxIndex !== null && (
+        <GalleryLightbox
+          images={event.gallery}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      )}
     </main>
   )
 }

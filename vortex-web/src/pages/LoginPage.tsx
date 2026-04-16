@@ -30,6 +30,7 @@ export function LoginPage() {
   const [otpSent, setOtpSent] = useState(false)
   const [otpLoading, setOtpLoading] = useState(false)
   const [otpCooldown, setOtpCooldown] = useState(0)
+  const [verificationPending, setVerificationPending] = useState(false)
 
   // OTP cooldown timer
   useEffect(() => {
@@ -92,19 +93,37 @@ export function LoginPage() {
         setError(res.message)
         return
       }
-      setSuccessMsg('REGISTRATION SUCCESSFUL. PLEASE LOG IN.')
-      setMode('login')
-      setPassword('')
-      setConfirmPassword('')
-      setOtp('')
-      setOtpSent(false)
+      
+      // Check if verification is pending
+      if (res.verification_pending) {
+        setVerificationPending(true)
+        setSuccessMsg('REGISTRATION SUCCESSFUL. CHECK YOUR EMAIL TO VERIFY.')
+        setPassword('')
+        setConfirmPassword('')
+        setOtp('')
+        setOtpSent(false)
+        setUsername('')
+      } else {
+        // Auto-login after registration
+        setSuccessMsg('REGISTRATION SUCCESSFUL. PLEASE LOG IN.')
+        setMode('login')
+        setPassword('')
+        setConfirmPassword('')
+        setOtp('')
+        setOtpSent(false)
+      }
       setEmail('')
       return
     }
 
     const res = await login({ username, password })
     if (!res.ok) {
-      setError(res.message)
+      // Check if it's an email verification issue
+      if (res.email_verified === false) {
+        setError('Please verify your email before logging in. Check your inbox for the verification link.')
+      } else {
+        setError(res.message)
+      }
       return
     }
     if (res.user?.isAdmin) {
@@ -164,6 +183,34 @@ export function LoginPage() {
             </div>
           ) : null}
 
+          {/* EMAIL VERIFICATION PENDING */}
+          {verificationPending && (
+            <div className="space-y-4 py-4">
+              <div className="text-center">
+                <div className="flex justify-center mb-3">
+                  <span className="material-symbols-outlined text-4xl text-primary animate-bounce">mail</span>
+                </div>
+                <h3 className="font-display text-xl text-primary mb-2">CHECK_YOUR_EMAIL</h3>
+                <p className="font-accent text-xs text-zinc-400 mb-3">
+                  We've sent a verification link to <span className="text-primary font-bold">{email}</span>
+                </p>
+                <p className="font-accent text-[11px] text-zinc-500 mb-4">
+                  Click the link in your email to verify your account. The link expires in 24 hours.
+                </p>
+              </div>
+              
+              <button
+                type="button"
+                onClick={() => setVerificationPending(false)}
+                className="w-full py-2 bg-primary/20 hover:bg-primary/40 text-primary font-accent text-xs uppercase tracking-wider transition-colors rounded"
+              >
+                DIDN'T GET EMAIL? CHECK SPAM OR TRY AGAIN
+              </button>
+            </div>
+          )}
+
+          {!verificationPending ? (
+            <>
           {/* EMAIL - signup only, shown first */}
           {mode === 'signup' && (
             <div className="space-y-2">
@@ -306,6 +353,8 @@ export function LoginPage() {
               {mode === 'login' ? 'AUTHENTICATE' : 'SIGN UP'}
             </button>
           </div>
+            </>
+          )}
         </form>
       </div>
       </div>
