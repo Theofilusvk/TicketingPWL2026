@@ -209,7 +209,7 @@ export function LoginPage() {
             </div>
           )}
 
-          {!verificationPending ? (
+          {!verificationPending && (
             <>
           {/* EMAIL - signup only, shown first */}
           {mode === 'signup' && (

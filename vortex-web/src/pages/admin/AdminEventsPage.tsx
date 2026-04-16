@@ -125,6 +125,91 @@ export function AdminEventsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('ALL')
 
+  // Organizer Assignment State
+  const [showOrganizerModal, setShowOrganizerModal] = useState(false)
+  const [organizerEvent, setOrganizerEvent] = useState<EventData | null>(null)
+  const [eventOrganizers, setEventOrganizers] = useState<any[]>([])
+  const [allOrganizers, setAllOrganizers] = useState<any[]>([])
+  const [isAssigning, setIsAssigning] = useState(false)
+  const [organizerLoading, setOrganizerLoading] = useState(false)
+
+  const fetchEventOrganizers = async (eventId: string) => {
+    setOrganizerLoading(true)
+    try {
+      const token = localStorage.getItem('vortex.auth.token')
+      const [assignRes, usersRes] = await Promise.all([
+        fetch(`/api/admin/events/${eventId}/organizers`, {
+          headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('/api/admin/users', {
+          headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` }
+        })
+      ])
+      if (assignRes.ok) {
+        const data = await assignRes.json()
+        setEventOrganizers(data)
+      }
+      if (usersRes.ok) {
+        const usersData = await usersRes.json()
+        const organizers = (usersData.data || usersData).filter((u: any) => u.role === 'organizer')
+        setAllOrganizers(organizers)
+      }
+    } catch (err) {
+      console.error('Failed to fetch organizer data', err)
+    } finally {
+      setOrganizerLoading(false)
+    }
+  }
+
+  const handleAssignOrganizer = async (organizerId: string) => {
+    if (!organizerEvent || isAssigning) return
+    setIsAssigning(true)
+    try {
+      const token = localStorage.getItem('vortex.auth.token')
+      const res = await fetch('/api/admin/event-organizers/assign', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ event_id: organizerEvent.id, organizer_id: organizerId })
+      })
+      const payload = await res.json()
+      if (res.ok) {
+        await fetchEventOrganizers(organizerEvent.id)
+      } else {
+        alert(payload.message || 'Failed to assign organizer')
+      }
+    } catch (err) {
+      alert('Network error')
+    } finally {
+      setIsAssigning(false)
+    }
+  }
+
+  const handleUnassignOrganizer = async (eventOrganizerId: string) => {
+    if (!confirm('Remove this organizer from the event?')) return
+    try {
+      const token = localStorage.getItem('vortex.auth.token')
+      const res = await fetch(`/api/admin/event-organizers/${eventOrganizerId}`, {
+        method: 'DELETE',
+        headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok && organizerEvent) {
+        await fetchEventOrganizers(organizerEvent.id)
+      }
+    } catch (err) {
+      alert('Network error')
+    }
+  }
+
+  const openOrganizerModal = (event: EventData) => {
+    setOrganizerEvent(event)
+    setShowOrganizerModal(true)
+    fetchEventOrganizers(event.id)
+  }
+
   const [form, setForm] = useState<EventFormData>(INITIAL_FORM)
 
   // Filtered events
@@ -218,9 +303,11 @@ export function AdminEventsPage() {
       formData.append('description', form.description)
       formData.append('location', form.venue || 'THE FOUNDRY')
       formData.append('start_time', `${form.startDate} 19:00:00`)
-      formData.append('end_time', `${form.endDate || form.startDate} 23:59:59`)      if (form.organizerAccessUntil) {
+      formData.append('end_time', `${form.endDate || form.startDate} 23:59:59`)
+      if (form.organizerAccessUntil) {
         formData.append('organizer_access_until', `${form.organizerAccessUntil} 23:59:59`)
-      }      formData.append('organizer_id', '2') // Usually mapped to auth()->id() if backend expects matching ID
+      }
+      formData.append('organizer_id', '2') // Usually mapped to auth()->id() if backend expects matching ID
       formData.append('category_id', form.category_id || (categories.length > 0 ? categories[0].id : '1'))
       formData.append('status', 'active')
 
@@ -517,12 +604,129 @@ export function AdminEventsPage() {
                     <span className="material-symbols-outlined text-[18px]">edit</span> Edit
                   </button>
                   <button
+                    onClick={() => { setShowDetailModal(false); openOrganizerModal(detailEvent) }}
+                    className="flex-1 px-4 py-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-sm font-semibold text-indigo-300 hover:bg-indigo-500/20 transition-all duration-300 flex items-center justify-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">group_add</span> Organizers
+                  </button>
+                  <button
                     onClick={() => { setShowDetailModal(false); handleDelete(detailEvent) }}
                     className="px-4 py-3 rounded-2xl border border-rose-500/20 text-sm font-semibold text-rose-400 hover:bg-rose-500/10 transition-all duration-300 flex items-center justify-center gap-2"
                   >
                     <span className="material-symbols-outlined text-[18px]">delete</span>
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Organizer Assignment Modal */}
+      {showOrganizerModal && organizerEvent && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4" onClick={() => setShowOrganizerModal(false)}>
+          <div className="bg-[#0a0a0a] border border-white/[0.12] rounded-[32px] w-full max-w-2xl shadow-[0_24px_80px_rgba(0,0,0,0.7)] animate-in zoom-in-95 duration-300 relative overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-400/40 to-transparent" />
+
+            {/* Header */}
+            <div className="p-6 md:p-8 pb-4 border-b border-white/[0.06] flex items-start justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
+                  <span className="material-symbols-outlined text-indigo-400">group_add</span>
+                  Assign Organizers
+                </h2>
+                <p className="text-sm text-white/40 mt-1">Manage organizer access for <span className="text-indigo-300 font-semibold">{organizerEvent.name}</span></p>
+              </div>
+              <button onClick={() => setShowOrganizerModal(false)} className="text-white/40 hover:text-white p-2 transition-colors rounded-full hover:bg-white/5">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="overflow-y-auto p-6 md:p-8 space-y-6">
+              {/* Currently Assigned */}
+              <div>
+                <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest mb-3">Currently Assigned ({eventOrganizers.length})</h3>
+                {organizerLoading ? (
+                  <div className="flex items-center gap-3 py-6 justify-center">
+                    <span className="material-symbols-outlined animate-spin text-white/20">hourglass_top</span>
+                    <p className="text-white/30 text-sm">Loading...</p>
+                  </div>
+                ) : eventOrganizers.length === 0 ? (
+                  <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-6 text-center">
+                    <span className="material-symbols-outlined text-3xl text-white/10 mb-2">person_off</span>
+                    <p className="text-white/30 text-sm">No organizers assigned yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {eventOrganizers.map((org: any) => (
+                      <div key={org.event_organizer_id} className="bg-white/[0.03] border border-white/[0.06] rounded-2xl px-4 py-3 flex items-center justify-between group hover:border-white/[0.12] transition-all duration-300">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-indigo-400 text-[18px]">person</span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-white/90">{org.organizer_name}</p>
+                            <p className="text-[10px] text-white/30 font-mono">{org.organizer_email}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right mr-2 hidden sm:block">
+                            <p className="text-[9px] text-white/25 uppercase tracking-widest">Referral Code</p>
+                            <p className="font-mono text-xs text-indigo-300 font-bold">{org.referral_code}</p>
+                          </div>
+                          <button
+                            onClick={() => handleUnassignOrganizer(org.event_organizer_id)}
+                            className="text-white/20 hover:text-rose-400 p-1.5 rounded-xl hover:bg-rose-500/10 transition-all duration-300"
+                            title="Remove organizer"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">person_remove</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Available Organizers to Assign */}
+              <div>
+                <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest mb-3">Available Organizers</h3>
+                {(() => {
+                  const assignedIds = eventOrganizers.map((o: any) => String(o.organizer_id))
+                  const available = allOrganizers.filter((u: any) => !assignedIds.includes(String(u.user_id || u.id)))
+                  if (available.length === 0) {
+                    return (
+                      <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-6 text-center">
+                        <span className="material-symbols-outlined text-3xl text-white/10 mb-2">check_circle</span>
+                        <p className="text-white/30 text-sm">All organizers are already assigned.</p>
+                      </div>
+                    )
+                  }
+                  return (
+                    <div className="space-y-2">
+                      {available.map((user: any) => (
+                        <div key={user.user_id || user.id} className="bg-white/[0.02] border border-white/[0.05] hover:border-indigo-500/30 hover:bg-indigo-500/5 rounded-2xl px-4 py-3 flex items-center justify-between transition-all duration-300 group">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+                              <span className="material-symbols-outlined text-white/30 text-[18px]">person</span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-white/80">{user.username}</p>
+                              <p className="text-[10px] text-white/30 font-mono">{user.email}</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleAssignOrganizer(String(user.user_id || user.id))}
+                            disabled={isAssigning}
+                            className="px-4 py-2 bg-white text-black hover:bg-indigo-400 hover:text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isAssigning ? 'Assigning...' : 'Assign'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
               </div>
             </div>
           </div>

@@ -43,7 +43,7 @@ class VerifyEmailMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: 'emails.verify-email',
+            markdown: 'emails.verify-email',
             with: [
                 'user' => $this->user,
                 'verificationUrl' => $this->verificationUrl,
