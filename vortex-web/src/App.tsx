@@ -1,7 +1,8 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
 import { RequireAuth } from './lib/RequireAuth'
 import { lazy, Suspense } from 'react'
+import { useAuth } from './lib/auth'
 
 const CartPage = lazy(() => import('./pages/CartPage').then(module => ({ default: module.CartPage })))
 const CheckoutPage = lazy(() => import('./pages/CheckoutPage').then(module => ({ default: module.CheckoutPage })))
@@ -25,6 +26,7 @@ const AchievementsPage = lazy(() => import('./pages/AchievementsPage').then(modu
 const ChatRoomPage = lazy(() => import('./pages/ChatRoomPage').then(module => ({ default: module.ChatRoomPage })))
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then(module => ({ default: module.ForgotPasswordPage })))
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage').then(module => ({ default: module.ResetPasswordPage })))
+const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage').then(module => ({ default: module.VerifyEmailPage })))
 
 // Admin Pages
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout').then(module => ({ default: module.AdminLayout })))
@@ -44,6 +46,17 @@ import { AudioProvider } from './lib/audio'
 import { PageLoader } from './components/PageLoader'
 import { I18nProvider } from './lib/i18n'
 
+// Protect admin-only routes (not for organizer)
+function AdminOnlyRoute({ element }: { element: React.ReactNode }) {
+  const { user } = useAuth()
+  
+  if (user?.role === 'organizer') {
+    return <Navigate to="/admin" replace />
+  }
+  
+  return element as React.ReactElement
+}
+
 export function App() {
   return (
     <I18nProvider>
@@ -60,9 +73,9 @@ export function App() {
               <Route path="events" element={<AdminEventsPage />} />
               <Route path="categories" element={<AdminCategoriesPage />} />
               <Route path="users" element={<AdminUsersPage />} />
-              <Route path="drops" element={<AdminDropsPage />} />
-              <Route path="news" element={<AdminNewsPage />} />
-              <Route path="notifications" element={<AdminNotificationPage />} />
+              <Route path="drops" element={<AdminOnlyRoute element={<AdminDropsPage />} />} />
+              <Route path="news" element={<AdminOnlyRoute element={<AdminNewsPage />} />} />
+              <Route path="notifications" element={<AdminOnlyRoute element={<AdminNotificationPage />} />} />
               <Route path="analytics" element={<AdminAnalyticsPage />} />
               <Route path="reports" element={<AdminReportsPage />} />
             </Route>
@@ -72,6 +85,7 @@ export function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="/events" element={<EventsPage />} />
             <Route path="/events/:eventId" element={<EventDetailPage />} />
             <Route path="/chat/:eventId" element={<ChatRoomPage />} />

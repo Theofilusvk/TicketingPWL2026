@@ -73,14 +73,16 @@ export function AdminLayout() {
         ] : []),
       ]
     },
-    {
-      title: 'Content',
-      items: [
-        { to: '/admin/drops', icon: 'sell', label: 'Merchandise' },
-        { to: '/admin/news', icon: 'campaign', label: 'Broadcasts' },
-        { to: '/admin/notifications', icon: 'notifications', label: 'Notifications' },
-      ]
-    },
+    ...(!isOrganizer ? [
+      {
+        title: 'Content',
+        items: [
+          { to: '/admin/drops', icon: 'sell', label: 'Merchandise' },
+          { to: '/admin/news', icon: 'campaign', label: 'Broadcasts' },
+          { to: '/admin/notifications', icon: 'notifications', label: 'Notifications' },
+        ]
+      }
+    ] : []),
   ]
 
   const quickStats = [

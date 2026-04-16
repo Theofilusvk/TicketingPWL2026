@@ -15,13 +15,13 @@ type AuthContextValue = {
   user: User | null
   isAuthenticated: boolean
   isInitializing: boolean
-  login: (params: { username: string; password: string }) => Promise<{ ok: true; user: User } | { ok: false; message: string }>
+  login: (params: { username: string; password: string }) => Promise<{ ok: true; user: User } | { ok: false; message: string; email_verified?: boolean }>
   signup: (params: {
     username: string
     password: string
     email: string
     otp: string
-  }) => Promise<{ ok: true } | { ok: false; message: string }>
+  }) => Promise<{ ok: true; verification_pending?: boolean } | { ok: false; message: string }>
   logout: () => void
   updateUser: (updates: Partial<User>) => void
 }
@@ -102,7 +102,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { ok: false as const, message: errors || 'Registration failed' }
         }
 
-        return { ok: true as const }
+        // Check if email verification is required
+        const verificationPending = payload.data?.verification_pending === true
+        return { ok: true as const, verification_pending: verificationPending }
       } catch (err) {
         return { ok: false as const, message: 'Network error occurred.' }
       }
@@ -128,7 +130,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const payload = await response.json()
 
       if (!response.ok) {
-        return { ok: false as const, message: payload.message || 'Login failed' }
+        // Check if it's an email verification issue
+        const emailNotVerified = payload.email_verified === false
+        return { ok: false as const, message: payload.message || 'Login failed', email_verified: emailNotVerified }
       }
 
       const t = payload.token;

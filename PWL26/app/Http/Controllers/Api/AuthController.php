@@ -8,7 +8,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 use App\Mail\RegisterOtpMail;
+use App\Mail\VerifyEmailMail;
 
 class AuthController extends Controller
 {
@@ -64,18 +66,30 @@ class AuthController extends Controller
         // OTP is valid, remove it from cache
         Cache::forget('register_otp_' . $request->email);
 
-        // Create user
+        // Create user with unverified email
         $validated['role'] = 'user';
-        // Remove otp from validated data before creating user
+        $validated['password'] = Hash::make($validated['password']);
         unset($validated['otp']);
 
         $user = User::create($validated);
-        $token = $user->createToken('auth_token')->plainTextToken;
+
+        // Generate signed email verification URL
+        $verificationUrl = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addHours(24),
+            ['id' => $user->user_id, 'hash' => sha1($user->email)]
+        );
+
+        // Send verification email
+        Mail::to($user->email)->send(new VerifyEmailMail($user, $verificationUrl));
 
         return response()->json([
-            'message' => 'User registered successfully',
-            'data' => $user,
-            'token' => $token,
+            'message' => 'Registration successful. Please check your email to verify your account.',
+            'data' => [
+                'user' => $user,
+                'email_verified' => false,
+                'verification_pending' => true,
+            ],
         ], 201);
     }
 
@@ -102,6 +116,15 @@ class AuthController extends Controller
             ], 401);
         }
 
+        // Check if email is verified
+        if (!$user->email_verified_at) {
+            return response()->json([
+                'message' => 'Please verify your email before logging in.',
+                'email_verified' => false,
+                'data' => ['email' => $user->email],
+            ], 403);
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -125,6 +148,75 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Logged out successfully'
+        ]);
+    }
+
+    /**
+     * Send verification email to unverified user
+     */
+    public function resendVerificationEmail(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        // Check if already verified
+        if ($user->email_verified_at) {
+            return response()->json([
+                'message' => 'Email is already verified.'
+            ], 422);
+        }
+
+        // Generate signed email verification URL
+        $verificationUrl = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addHours(24),
+            ['id' => $user->user_id, 'hash' => sha1($user->email)]
+        );
+
+        // Send verification email
+        Mail::to($user->email)->send(new VerifyEmailMail($user, $verificationUrl));
+
+        return response()->json([
+            'message' => 'Verification email sent successfully.'
+        ]);
+    }
+
+    /**
+     * Verify email from signed URL (API endpoint)
+     */
+    public function verifyEmail(Request $request, $id, $hash)
+    {
+        $user = User::findOrFail($id);
+
+        // Verify hash
+        if (sha1($user->email) !== $hash) {
+            return response()->json([
+                'message' => 'Invalid verification link.'
+            ], 422);
+        }
+
+        // Check if already verified
+        if ($user->email_verified_at) {
+            return response()->json([
+                'message' => 'Email is already verified.'
+            ]);
+        }
+
+        // Mark as verified
+        $user->email_verified_at = now();
+        $user->save();
+
+        // Generate token for auto-login
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Email verified successfully. You can now login.',
+            'data' => $user,
+            'token' => $token,
+            'email_verified' => true,
         ]);
     }
 }

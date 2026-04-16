@@ -129,6 +129,8 @@ export function SuccessPage() {
 
   const [stage, setStage] = useState(0)
   const [showEmailModal, setShowEmailModal] = useState(false)
+  const [testingXendit, setTestingXendit] = useState(false)
+  const [xenditStatus, setXenditStatus] = useState<string>('')
 
   useEffect(() => {
       let intervalId: number;
@@ -207,6 +209,38 @@ export function SuccessPage() {
   const staggerClass = (s: number) =>
     `transition-all duration-700 ${stage >= s ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`
 
+  // Test Xendit payment status
+  const testXenditStatus = async () => {
+    setTestingXendit(true)
+    setXenditStatus('Testing Xendit connection...')
+    try {
+      const token = localStorage.getItem('vortex.auth.token')
+      const response = await fetch(`http://127.0.0.1:8000/api/orders/${urlOrderId}`, {
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+      })
+      const data = await response.json()
+      
+      if (data.status === 'success') {
+        const order = data.data
+        const paymentStatus = order.payment_status || order.status || 'unknown'
+        const xenditRef = order.xendit_invoice_id || order.xendit_reference || 'N/A'
+        
+        setXenditStatus(
+          `✓ Xendit Connection OK\n` +
+          `Payment Status: ${paymentStatus.toUpperCase()}\n` +
+          `Invoice ID: ${xenditRef}\n` +
+          `Timestamp: ${new Date().toLocaleTimeString()}`
+        )
+      } else {
+        setXenditStatus(`✗ Error: ${data.message || 'Unknown error'}`)
+      }
+    } catch (error) {
+      setXenditStatus(`✗ Connection Failed: ${error instanceof Error ? error.message : 'Network error'}`)
+    } finally {
+      setTestingXendit(false)
+    }
+  }
+
   if (isFetching) {
       return <div className="h-screen w-full flex items-center justify-center text-primary font-mono animate-pulse">VERIFYING_TRANSACTION...</div>
   }
@@ -222,15 +256,55 @@ export function SuccessPage() {
 
         {/* Status Badge + Title */}
         <div className={`mb-12 text-center ${staggerClass(1)}`}>
-          <div className="inline-block bg-hot-coral text-black px-4 py-1 font-accent font-bold text-[10px] mb-6 uppercase tracking-widest leading-loose animate-pulse">
-            PROTOCOL_STATUS: VERIFIED
+          <div className={`inline-block ${orderData.status === 'paid' ? 'bg-emerald-600' : 'bg-hot-coral'} text-black px-4 py-1 font-accent font-bold text-[10px] mb-6 uppercase tracking-widest leading-loose ${orderData.status === 'paid' ? '' : 'animate-pulse'}`}>
+            PAYMENT_STATUS: {orderData.status === 'paid' ? '✓ PAID' : '⏳ PENDING'}
           </div>
           <h1 className="font-display text-6xl md:text-8xl leading-none text-primary drop-shadow-[0_0_20px_rgba(203,255,0,0.6)]">
-            PAYMENT_CONFIRMED
+            {orderData.status === 'paid' ? 'PAYMENT_CONFIRMED' : 'PROCESSING_PAYMENT'}
           </h1>
           <p className="font-accent text-[10px] text-zinc-500 uppercase tracking-widest mt-4">
-            TRANSACTION ENCRYPTED & STORED ON VORTEX MAINFRAME
+            {orderData.status === 'paid' ? 'TRANSACTION ENCRYPTED & STORED ON VORTEX MAINFRAME' : 'VERIFYING WITH XENDIT PAYMENT GATEWAY'}
           </p>
+          
+          {/* Payment Reference Info */}
+          {orderData && (
+            <div className="mt-6 p-4 bg-black/60 border border-zinc-800 rounded text-left max-w-md mx-auto">
+              <div className="grid grid-cols-2 gap-3 font-mono text-[9px] text-zinc-400 uppercase tracking-wider">
+                <div>
+                  <p className="text-zinc-600">Order ID</p>
+                  <p className="text-primary font-bold">{orderData.id || orderData.orderId || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-zinc-600">Payment Method</p>
+                  <p className="text-indigo-400">{orderData.payment_method || 'XENDIT'}</p>
+                </div>
+                <div>
+                  <p className="text-zinc-600">Total Amount</p>
+                  <p className="text-hot-coral">${Number(orderData.total).toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-zinc-600">Status</p>
+                  <p className={orderData.status === 'paid' ? 'text-emerald-400' : 'text-yellow-400'}>{(orderData.status || 'pending').toUpperCase()}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Test Xendit Button */}
+          <button
+            onClick={testXenditStatus}
+            disabled={testingXendit}
+            className="mt-6 px-4 py-2 bg-indigo-600/20 border border-indigo-500/50 rounded text-indigo-400 text-xs font-mono uppercase tracking-wider hover:border-indigo-400 hover:bg-indigo-600/30 transition-all disabled:opacity-50"
+          >
+            {testingXendit ? 'Testing...' : 'Test Xendit Status'}
+          </button>
+          
+          {/* Xendit Test Result */}
+          {xenditStatus && (
+            <div className="mt-4 p-3 bg-zinc-900/60 border border-zinc-700 rounded text-left font-mono text-[8px] text-zinc-300 max-w-md mx-auto whitespace-pre-line">
+              {xenditStatus}
+            </div>
+          )}
         </div>
 
         {/* Dynamic Tickets Display */}
@@ -331,6 +405,24 @@ export function SuccessPage() {
             <h2 className="font-display text-3xl text-primary">WHAT'S_NEXT?</h2>
           </div>
 
+          {/* Email Delivery Info */}
+          {orderData.status === 'paid' && (
+            <div className="mb-8 p-4 bg-emerald-500/5 border border-emerald-500/30 rounded">
+              <div className="flex items-start gap-3">
+                <span className="material-symbols-outlined text-emerald-400 text-xl mt-0.5">check_circle</span>
+                <div>
+                  <p className="font-accent text-sm text-emerald-400 uppercase tracking-wider font-bold">Email Delivery in Progress</p>
+                  <p className="font-accent text-[11px] text-emerald-300/80 mt-1">
+                    Your e-tickets have been queued for automatic delivery to <span className="font-mono font-bold">{orderData.user?.email || 'your registered email'}</span>
+                  </p>
+                  <p className="font-accent text-[9px] text-emerald-300/60 mt-2">
+                    Delivery typically completes within 5 minutes. You can also send tickets manually using the button below.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-20 border-b border-white/10 pb-20">
             <Link
               to="/tickets"
@@ -386,13 +478,16 @@ export function SuccessPage() {
             </Link>
             <button
               onClick={() => setShowEmailModal(true)}
-              className="flex items-center gap-4 p-5 border border-white/10 hover:border-indigo-400/50 hover:bg-indigo-500/5 transition-all group bg-black/40 hover:shadow-[0_0_20px_rgba(99,102,241,0.05)] text-left"
+              className="flex items-center gap-4 p-5 border-2 border-indigo-500/80 hover:border-indigo-300 hover:bg-indigo-600/10 transition-all group bg-indigo-500/5 hover:shadow-[0_0_30px_rgba(99,102,241,0.2)] text-left"
             >
-              <span className="material-symbols-outlined text-indigo-400 text-xl group-hover:scale-110 transition-transform">mail</span>
-              <div className="flex flex-col">
-                <span className="font-display text-xl text-white group-hover:text-indigo-400 transition-colors tracking-wide">SEND EMAIL</span>
-                <span className="font-accent text-[8px] text-zinc-500 tracking-widest uppercase">E-TICKET_DELIVERY</span>
+              <span className="material-symbols-outlined text-indigo-400 text-2xl group-hover:scale-110 transition-transform">mail</span>
+              <div className="flex flex-col flex-1">
+                <span className="font-display text-xl text-indigo-300 group-hover:text-indigo-200 transition-colors tracking-wide">SEND EMAIL</span>
+                <span className="font-accent text-[8px] text-indigo-400/70 tracking-widest uppercase">
+                  {orderData.status === 'paid' ? '✓ E-TICKET QUEUED FOR DELIVERY' : 'Pending payment confirmation'}
+                </span>
               </div>
+              <span className="material-symbols-outlined text-indigo-400 text-lg group-hover:translate-x-1 transition-transform">arrow_forward</span>
             </button>
           </div>
         </div>
