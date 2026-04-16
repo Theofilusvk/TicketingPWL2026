@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useToast } from '../../components/Toast'
 
 interface CategoryData {
   id: string
@@ -8,6 +9,7 @@ interface CategoryData {
 }
 
 export function AdminCategoriesPage() {
+  const { showToast } = useToast()
   const [categories, setCategories] = useState<CategoryData[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -98,11 +100,12 @@ export function AdminCategoriesPage() {
         await fetchCategories()
         setShowModal(false)
         setForm({ name: '', description: '' })
+        showToast(`Category ${isEditing ? 'updated' : 'created'} successfully`, 'success')
       } else {
-        alert('Action failed: ' + (result.message || 'Validation error'))
+        showToast('Action failed: ' + (result.message || 'Validation error'), 'error')
       }
     } catch (err) {
-      alert('Network Error')
+      showToast('Network Error', 'error')
     }
   }
 
@@ -120,11 +123,12 @@ export function AdminCategoriesPage() {
       })
       if (res.ok) {
         await fetchCategories()
+        showToast('Category deleted successfully', 'success')
       } else {
-        alert('Could not delete category. It might be used by events.')
+        showToast('Could not delete category. It might be used by events.', 'error')
       }
     } catch (err) {
-      alert('Network Error')
+      showToast('Network Error', 'error')
     }
   }
 

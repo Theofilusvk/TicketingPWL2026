@@ -41,6 +41,7 @@ const AdminDropsPage = lazy(() => import('./pages/admin/AdminDropsPage').then(mo
 const AdminNewsPage = lazy(() => import('./pages/admin/AdminNewsPage').then(module => ({ default: module.AdminNewsPage })))
 const AdminNotificationPage = lazy(() => import('./pages/admin/AdminNotificationPage').then(module => ({ default: module.AdminNotificationPage })))
 const AdminAnalyticsPage = lazy(() => import('./pages/admin/AdminAnalyticsPage').then(module => ({ default: module.AdminAnalyticsPage })))
+const OrganizerAnalyticsPage = lazy(() => import('./pages/organizer/OrganizerAnalyticsPage').then(module => ({ default: module.OrganizerAnalyticsPage })))
 const AdminReportsPage = lazy(() => import('./pages/admin/AdminReportsPage').then(module => ({ default: module.AdminReportsPage })))
 
 import { AudioProvider } from './lib/audio'
@@ -67,6 +68,15 @@ function EventsRouteDispatcher() {
   return <AdminEventsPage />
 }
 
+// Redirect organizer to their specific analytics view
+function AnalyticsRouteDispatcher() {
+  const { user } = useAuth()
+  if (user?.role === 'organizer') {
+    return <OrganizerAnalyticsPage />
+  }
+  return <AdminAnalyticsPage />
+}
+
 export function App() {
   return (
     <I18nProvider>
@@ -86,7 +96,7 @@ export function App() {
               <Route path="drops" element={<AdminOnlyRoute element={<AdminDropsPage />} />} />
               <Route path="news" element={<AdminOnlyRoute element={<AdminNewsPage />} />} />
               <Route path="notifications" element={<AdminOnlyRoute element={<AdminNotificationPage />} />} />
-              <Route path="analytics" element={<AdminAnalyticsPage />} />
+              <Route path="analytics" element={<AnalyticsRouteDispatcher />} />
               <Route path="reports" element={<AdminReportsPage />} />
             </Route>
 

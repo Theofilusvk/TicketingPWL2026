@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Navigate, Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../lib/auth'
 import { AdminPageLoader } from '../../components/AdminPageLoader'
+import { ToastProvider } from '../../components/Toast'
 
 export function AdminLayout() {
   const { user, isAuthenticated, logout } = useAuth()
@@ -190,8 +191,9 @@ export function AdminLayout() {
   )
 
   return (
-    <div className="min-h-screen bg-[#050505] text-zinc-100 flex font-sans selection:bg-white/20 transition-colors duration-500 cursor-default">
-      {/* Desktop Sidebar */}
+    <ToastProvider>
+      <div className="min-h-screen bg-[#050505] text-zinc-100 flex font-sans selection:bg-white/20 transition-colors duration-500 cursor-default">
+        {/* Desktop Sidebar */}
       <aside className="w-64 border-r border-white/[0.08] bg-white/[0.02] backdrop-blur-[40px] p-5 flex-col gap-4 hidden md:flex shrink-0 z-10 shadow-[4px_0_24px_-4px_rgba(0,0,0,0.2)]">
         <SidebarContent />
       </aside>
@@ -247,5 +249,6 @@ export function AdminLayout() {
         </div>
       </main>
     </div>
+    </ToastProvider>
   )
 }

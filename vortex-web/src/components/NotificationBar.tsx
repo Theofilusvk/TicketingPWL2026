@@ -15,14 +15,6 @@ interface Notification {
   updated_at: string
 }
 
-interface PopupNotif {
-  notification_id: number
-  title: string
-  message: string
-  type: string
-  logo_url: string | null
-}
-
 export function NotificationBar() {
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
@@ -30,7 +22,6 @@ export function NotificationBar() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [popupNotifs, setPopupNotifs] = useState<PopupNotif[]>([])
 
   const token = localStorage.getItem('vortex.auth.token')
 
@@ -74,18 +65,7 @@ export function NotificationBar() {
         credentials: 'include',
       })
       const data = await response.json()
-      const newNotifications = data.data || data
-      
-      // Detect new unread notifications and show pop-up
-      newNotifications.forEach((notif: Notification) => {
-        const existingNotif = notifications.find(n => n.notification_id === notif.notification_id)
-        if (!existingNotif && !notif.is_read) {
-          // New unread notification - show as pop-up
-          showPopupNotification(notif)
-        }
-      })
-      
-      setNotifications(newNotifications)
+      setNotifications(data.data || data)
       setError('')
     } catch (err) {
       setError('Failed to fetch notifications')
@@ -93,23 +73,6 @@ export function NotificationBar() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const showPopupNotification = (notif: Notification) => {
-    const popupItem: PopupNotif = {
-      notification_id: notif.notification_id,
-      title: notif.title,
-      message: notif.message,
-      type: notif.type,
-      logo_url: notif.logo_url,
-    }
-    
-    setPopupNotifs(prev => [...prev, popupItem])
-    
-    // Auto-remove pop-up after 5 seconds
-    setTimeout(() => {
-      setPopupNotifs(prev => prev.filter(p => p.notification_id !== notif.notification_id))
-    }, 5000)
   }
 
   const handleOpen = () => {
@@ -299,11 +262,11 @@ export function NotificationBar() {
                           </button>
                         )}
                       </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex gap-1 xl:ml-auto md:ml-auto sm:ml-auto">
                         {!notif.is_read && (
                           <button
                             onClick={() => markAsRead(notif.notification_id)}
-                            className="p-1 hover:text-primary text-zinc-400 transition-colors"
+                            className="p-1 hover:text-primary text-zinc-400 transition-colors bg-zinc-800/50 rounded"
                             title="Mark as read"
                           >
                             <Check className="w-4 h-4" />
@@ -311,8 +274,8 @@ export function NotificationBar() {
                         )}
                         <button
                           onClick={() => deleteNotification(notif.notification_id)}
-                          className="p-1 hover:text-hot-coral text-zinc-400 transition-colors"
-                          title="Delete"
+                          className="p-1 hover:text-hot-coral text-zinc-400 transition-colors bg-zinc-800/50 rounded"
+                          title="Delete / Close"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -339,52 +302,12 @@ export function NotificationBar() {
         </div>
       )}
 
-      {/* Overlay to close menu */}
       {isOpen && (
         <div
           className="fixed inset-0 z-40"
           onClick={() => setIsOpen(false)}
         />
       )}
-
-      {/* Pop-up Notifications */}
-      <div className="fixed bottom-4 left-4 space-y-2 z-50 max-w-sm pointer-events-none">
-        {popupNotifs.map((popup) => (
-          <div
-            key={popup.notification_id}
-            className="animate-in fade-in slide-in-from-bottom-4 duration-300 pointer-events-auto"
-          >
-            <div className={`border-2 border-primary rounded p-4 bg-black shadow-lg flex gap-3 items-start ${getTypeColor(popup.type)}/20`}>
-              {popup.logo_url && (
-                <img
-                  src={popup.logo_url}
-                  alt="Notification"
-                  className="w-10 h-10 rounded object-cover flex-shrink-0"
-                />
-              )}
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded ${getTypeColor(popup.type)}`}>
-                    {popup.type.replace(/_/g, ' ').toUpperCase()}
-                  </span>
-                </div>
-                <h4 className="font-display text-sm text-primary">
-                  {popup.title}
-                </h4>
-                <p className="font-accent text-xs text-zinc-300 mt-1">
-                  {popup.message}
-                </p>
-              </div>
-              <button
-                onClick={() => setPopupNotifs(prev => prev.filter(p => p.notification_id !== popup.notification_id))}
-                className="text-zinc-500 hover:text-primary p-1 flex-shrink-0"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
     </>
   )
 }
