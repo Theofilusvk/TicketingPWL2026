@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useToast } from '../../components/Toast'
 
 export interface ApiDropData {
   merch_id: number;
@@ -11,6 +12,7 @@ export interface ApiDropData {
 }
 
 export function AdminDropsPage() {
+  const { showToast } = useToast()
   const [apiDrops, setApiDrops] = useState<ApiDropData[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -75,11 +77,12 @@ export function AdminDropsPage() {
           available_stock: 100,
           required_tier: 'SQUIRE'
         })
+        showToast('Merchandise item created successfully', 'success')
       } else {
-        alert('Validation error')
+        showToast('Validation error while creating item', 'error')
       }
     } catch (err) {
-      alert('Network error')
+      showToast('Network error', 'error')
     }
   }
 
@@ -95,11 +98,12 @@ export function AdminDropsPage() {
 
       if (res.ok) {
         await fetchDrops()
+        showToast('Merchandise item deleted successfully', 'success')
       } else {
-        alert('Could not delete item')
+        showToast('Could not delete item', 'error')
       }
     } catch (err) {
-      alert('Network error')
+      showToast('Network error', 'error')
     }
   }
 

@@ -1,19 +1,26 @@
 import { useState, useMemo, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { useAuth } from '../../lib/auth'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
+import { useToast } from '../../components/Toast'
 
-type ReportType = 'transaction' | 'daily-revenue' | 'event-profit' | 'refund'
+type ReportType = 'transaction' | 'scans' | 'daily-revenue' | 'event-profit' | 'refund'
 
 const REPORT_TABS: { key: ReportType; label: string; icon: string; description: string }[] = [
   { key: 'transaction', label: 'Transactions', icon: 'receipt_long', description: 'All transactions filtered by event and date range' },
+  { key: 'scans', label: 'Ticket Scans', icon: 'document_scanner', description: 'Log of all successful ticket validations/check-ins' },
   { key: 'daily-revenue', label: 'Daily Revenue', icon: 'trending_up', description: 'Aggregate revenue per day across all events' },
   { key: 'event-profit', label: 'Event Profit', icon: 'analytics', description: 'Revenue and profit breakdown per event' },
   { key: 'refund', label: 'Refunds', icon: 'undo', description: 'Refund and cancellation log' },
 ]
 
 export function AdminReportsPage() {
+  const { showToast } = useToast()
+  const { user } = useAuth()
+  const isOrganizer = user?.role === 'organizer'
+
   const [activeReport, setActiveReport] = useState<ReportType>('transaction')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -28,6 +35,7 @@ export function AdminReportsPage() {
   const [apiTransactions, setApiTransactions] = useState<any[]>([])
   const [apiDailyRevenue, setApiDailyRevenue] = useState<any[]>([])
   const [apiEventComparison, setApiEventComparison] = useState<any[]>([])
+  const [apiTicketScans, setApiTicketScans] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
   // Dropdown options
@@ -46,15 +54,20 @@ export function AdminReportsPage() {
 
     setIsLoading(true)
 
+    const transactionsUrl = isOrganizer ? `/api/organizer/analytics/transactions?${params}` : `/api/admin/analytics/transactions?${params}`
+    const revenueUrl = isOrganizer ? `/api/organizer/analytics/revenue?${params}` : `/api/admin/analytics/revenue?${params}`
+    const comparisonUrl = isOrganizer ? `/api/organizer/analytics/event-comparison?${params}` : `/api/admin/analytics/event-comparison?${params}`
+    const scansUrl = isOrganizer ? `/api/organizer/analytics/ticket-scans?${params}` : `/api/admin/analytics/ticket-scans?${params}`
+
     Promise.all([
-      fetch(`/api/admin/analytics/transactions?${params}`, { headers }).then(r => r.json()),
-      fetch(`/api/admin/analytics/revenue?${params}`, { headers }).then(r => r.json()),
-      fetch(`/api/admin/analytics/event-comparison?${params}`, { headers }).then(r => r.json())
+      fetch(transactionsUrl, { headers }).then(r => r.json()),
+      fetch(revenueUrl, { headers }).then(r => r.json()),
+      fetch(comparisonUrl, { headers }).then(r => r.json()),
+      fetch(scansUrl, { headers }).then(r => r.json())
     ])
-    .then(([transactionsRes, revenueRes, compRes]) => {
+    .then(([transactionsRes, revenueRes, compRes, scansRes]) => {
       if (transactionsRes.status === 'success') {
         const txs = transactionsRes.data.recent_transactions || []
-        // Optional: you can manually filter transactions beyond limit in a real large application by passing page sizes 
         setApiTransactions(txs)
       }
       if (revenueRes.status === 'success') {
@@ -63,15 +76,16 @@ export function AdminReportsPage() {
       if (compRes.status === 'success') {
         setApiEventComparison(compRes.data || [])
       }
+      if (scansRes.status === 'success') {
+        setApiTicketScans(scansRes.data || [])
+      }
     })
     .catch(err => console.error('Reports API Error:', err))
     .finally(() => setIsLoading(false))
 
-  }, [dateFrom, dateTo]) // Re-fetch when date filter changes
+  }, [dateFrom, dateTo, isOrganizer]) // Re-fetch when date filter changes
 
-  // ==================== DATA GENERATORS ====================
 
-  // Transaction Report
   const transactionData = useMemo(() => {
     let data = apiTransactions.map(t => ({
       orderId: t.order_id,
@@ -91,6 +105,22 @@ export function AdminReportsPage() {
 
     return data
   }, [apiTransactions, selectedEventFilter])
+
+  // Ticket Scans Report
+  const scansData = useMemo(() => {
+    let data = apiTicketScans.map(s => ({
+      ticketId: s.ticket_id,
+      code: s.unique_code,
+      time: new Date(s.checked_in_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      holder: s.holder_name || 'N/A',
+      event: s.event_title,
+      type: s.ticket_name
+    }))
+    if (selectedEventFilter) {
+      data = data.filter(d => d.event === selectedEventFilter)
+    }
+    return data
+  }, [apiTicketScans, selectedEventFilter])
 
   // Daily Revenue Report
   const dailyRevenueData = useMemo(() => {
@@ -132,12 +162,12 @@ export function AdminReportsPage() {
     return transactionData.filter((t: any) => t.status === 'Refunded' || t.status === 'Cancelled')
   }, [transactionData])
 
-  // ==================== EXPORT FUNCTIONS ====================
-
   const getActiveTableData = () => {
     switch (activeReport) {
       case 'transaction':
         return { headers: ['Order ID', 'Date', 'Event', 'Total', 'Credits', 'Status'], rows: transactionData.map((t: any) => [t.orderId, t.date, t.items, `$ ${t.total.toLocaleString()}`, t.credits.toString(), t.status]) }
+      case 'scans':
+        return { headers: ['Ticket ID', 'Code', 'Scan Time', 'Holder', 'Event', 'Type'], rows: scansData.map((s: any) => [s.ticketId, s.code, s.time, s.holder, s.event, s.type]) }
       case 'daily-revenue':
         return { headers: ['Date', 'Revenue'], rows: dailyRevenueData.map(d => [d.date, `$ ${d.revenue.toLocaleString()}`]) }
       case 'event-profit':
@@ -233,22 +263,23 @@ export function AdminReportsPage() {
 
       if (res.ok) {
         setEmailSent(true)
+        showToast('Report emailed successfully', 'success')
         setTimeout(() => {
           setEmailSent(false)
           setShowEmailModal(false)
           setEmailAddress('')
         }, 2500)
       } else {
-        alert('Failed to send email.')
+        showToast('Failed to send email.', 'error')
       }
     } catch (err) {
-      alert('Network error')
+      showToast('Network error', 'error')
     } finally {
       setIsSending(false)
     }
   }
 
-  // ==================== RENDER ====================
+
 
   const activeTab = REPORT_TABS.find(t => t.key === activeReport)!
   const tableData = getActiveTableData()
@@ -434,6 +465,33 @@ export function AdminReportsPage() {
                 <Bar dataKey="revenue" fill="#818cf8" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {activeReport === 'scans' && scansData.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="bg-white/[0.02] backdrop-blur-[40px] border border-white/[0.08] p-5 rounded-[24px] flex items-center gap-4 shadow-[4px_12px_40px_-12px_rgba(0,0,0,0.3)] relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+            <div className={`w-11 h-11 rounded-[16px] bg-sky-500/20 flex items-center justify-center shrink-0`}>
+              <span className={`material-symbols-outlined text-[20px] text-sky-300`}>domain_verification</span>
+            </div>
+            <div>
+              <p className="font-mono text-lg font-semibold text-white">{scansData.length.toLocaleString()}</p>
+              <p className="text-xs text-white/40 font-medium">Total Check-ins</p>
+            </div>
+          </div>
+          <div className="bg-white/[0.02] backdrop-blur-[40px] border border-white/[0.08] p-5 rounded-[24px] flex items-center gap-4 shadow-[4px_12px_40px_-12px_rgba(0,0,0,0.3)] relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+            <div className={`w-11 h-11 rounded-[16px] bg-emerald-500/20 flex items-center justify-center shrink-0`}>
+              <span className={`material-symbols-outlined text-[20px] text-emerald-300`}>group</span>
+            </div>
+            <div>
+              <p className="font-mono text-lg font-semibold text-white">
+                {new Set(scansData.map(s => s.event)).size}
+              </p>
+              <p className="text-xs text-white/40 font-medium">Active Events Checked-In</p>
+            </div>
           </div>
         </div>
       )}

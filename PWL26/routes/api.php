@@ -137,6 +137,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('admin/analytics/event-comparison', [AnalyticsController::class, 'getEventComparison']);
         Route::get('admin/analytics/revenue', [AnalyticsController::class, 'getRevenueAnalytics']);
         Route::get('admin/analytics/transactions', [AnalyticsController::class, 'getTransactionMetrics']);
+        Route::get('admin/analytics/ticket-scans', [AnalyticsController::class, 'getTicketScans']);
 
         // Admin User Management Routes
         Route::get('admin/users', [AdminUserController::class, 'index']);
@@ -162,6 +163,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:organizer')->group(function () {
         Route::get('organizer/events', [EventOrganizerController::class, 'myEvents']);
         Route::post('organizer/enroll', [EventOrganizerController::class, 'enroll']);
+        Route::get('organizer/analytics/event-comparison', [AnalyticsController::class, 'getOrganizerEventComparison']);
+        Route::get('organizer/analytics/revenue', [AnalyticsController::class, 'getOrganizerRevenue']);
+        Route::get('organizer/analytics/transactions', [AnalyticsController::class, 'getOrganizerTransactions']);
+        Route::get('organizer/analytics/ticket-scans', [AnalyticsController::class, 'getOrganizerTicketScans']);
     });
 
     // Public route for referral code lookup (needed for QR code scanning)

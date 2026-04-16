@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Plus, X, Trash2, Edit2, Send, Upload } from 'lucide-react'
+import { useToast } from '../../components/Toast'
 
 interface News {
   news_id: number
@@ -20,6 +21,7 @@ interface Event {
 }
 
 export function AdminNewsPage() {
+  const { showToast } = useToast()
   const [newsList, setNewsList] = useState<News[]>([])
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
@@ -117,9 +119,13 @@ export function AdminNewsPage() {
         fetchNews()
         setShowModal(false)
         resetForm()
+        showToast(`News article ${editingNews ? 'updated' : 'published'} successfully`, 'success')
+      } else {
+        showToast('Failed to save news article', 'error')
       }
     } catch (err) {
       console.error('Failed to save news:', err)
+      showToast('Network error', 'error')
     }
   }
 
@@ -134,9 +140,13 @@ export function AdminNewsPage() {
 
       if (response.ok) {
         fetchNews()
+        showToast('News article deleted successfully', 'success')
+      } else {
+        showToast('Failed to delete news article', 'error')
       }
     } catch (err) {
       console.error('Failed to delete news:', err)
+      showToast('Network error', 'error')
     }
   }
 
