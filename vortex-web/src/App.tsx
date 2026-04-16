@@ -33,6 +33,7 @@ const AdminLayout = lazy(() => import('./pages/admin/AdminLayout').then(module =
 const AdminCategoriesPage = lazy(() => import('./pages/admin/AdminCategoriesPage').then(module => ({ default: module.AdminCategoriesPage })))
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage').then(module => ({ default: module.AdminDashboardPage })))
 const AdminEventsPage = lazy(() => import('./pages/admin/AdminEventsPage').then(module => ({ default: module.AdminEventsPage })))
+const OrganizerEventsPage = lazy(() => import('./pages/organizer/OrganizerEventsPage').then(module => ({ default: module.OrganizerEventsPage })))
 const AdminVenuesPage = lazy(() => import('./pages/admin/AdminVenuesPage').then(module => ({ default: module.AdminVenuesPage })))
 const AdminScannerPage = lazy(() => import('./pages/admin/AdminScannerPage').then(module => ({ default: module.AdminScannerPage })))
 const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage').then(module => ({ default: module.AdminUsersPage })))
@@ -57,6 +58,15 @@ function AdminOnlyRoute({ element }: { element: React.ReactNode }) {
   return element as React.ReactElement
 }
 
+// Redirect organizer to their specific events view
+function EventsRouteDispatcher() {
+  const { user } = useAuth()
+  if (user?.role === 'organizer') {
+    return <OrganizerEventsPage />
+  }
+  return <AdminEventsPage />
+}
+
 export function App() {
   return (
     <I18nProvider>
@@ -69,9 +79,9 @@ export function App() {
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboardPage />} />
               <Route path="scanner" element={<AdminScannerPage />} />
-              <Route path="venues" element={<AdminVenuesPage />} />
-              <Route path="events" element={<AdminEventsPage />} />
-              <Route path="categories" element={<AdminCategoriesPage />} />
+              <Route path="venues" element={<AdminOnlyRoute element={<AdminVenuesPage />} />} />
+              <Route path="events" element={<EventsRouteDispatcher />} />
+              <Route path="categories" element={<AdminOnlyRoute element={<AdminCategoriesPage />} />} />
               <Route path="users" element={<AdminUsersPage />} />
               <Route path="drops" element={<AdminOnlyRoute element={<AdminDropsPage />} />} />
               <Route path="news" element={<AdminOnlyRoute element={<AdminNewsPage />} />} />

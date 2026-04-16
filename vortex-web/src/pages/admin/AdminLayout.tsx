@@ -65,10 +65,10 @@ export function AdminLayout() {
       title: 'Manage',
       items: [
         { to: '/admin/events', icon: 'stadium', label: 'Events' },
-        { to: '/admin/categories', icon: 'category', label: 'Categories' },
-        { to: '/admin/venues', icon: 'map', label: 'Venues' },
         { to: '/admin/scanner', icon: 'document_scanner', label: 'Validation' },
         ...(!isOrganizer ? [
+          { to: '/admin/categories', icon: 'category', label: 'Categories' },
+          { to: '/admin/venues', icon: 'map', label: 'Venues' },
           { to: '/admin/users', icon: 'group', label: 'Users' },
         ] : []),
       ]

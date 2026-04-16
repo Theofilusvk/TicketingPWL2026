@@ -161,6 +161,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Organizer Routes
     Route::middleware('role:organizer')->group(function () {
         Route::get('organizer/events', [EventOrganizerController::class, 'myEvents']);
+        Route::post('organizer/enroll', [EventOrganizerController::class, 'enroll']);
     });
 
     // Public route for referral code lookup (needed for QR code scanning)

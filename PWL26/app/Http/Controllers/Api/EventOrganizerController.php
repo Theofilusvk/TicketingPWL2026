@@ -11,6 +11,40 @@ use Illuminate\Support\Facades\Auth;
 class EventOrganizerController
 {
     /**
+     * Organizer self-enrolls to an event
+     */
+    public function enroll(Request $request): JsonResponse
+    {
+        if (Auth::user()->role !== 'organizer') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'event_id' => 'required|exists:events,event_id',
+        ]);
+
+        $organizerId = Auth::id();
+
+        $existing = EventOrganizer::where('event_id', $validated['event_id'])
+            ->where('organizer_id', $organizerId)
+            ->first();
+
+        if ($existing) {
+            return response()->json(['message' => 'You are already enrolled into this event'], 422);
+        }
+
+        $eventOrganizer = EventOrganizer::create([
+            'event_id' => $validated['event_id'],
+            'organizer_id' => $organizerId,
+            'notes' => 'Self-enrolled',
+        ]);
+
+        return response()->json([
+            'message' => 'Successfully enrolled to event',
+            'data' => $eventOrganizer,
+        ], 201);
+    }
+    /**
      * Assign an organizer to an event (Admin only)
      */
     public function assign(Request $request): JsonResponse
